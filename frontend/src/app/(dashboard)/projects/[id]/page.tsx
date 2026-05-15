@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,11 @@ import {
   X,
   Check,
   CreditCard,
+  Bot,
+  Upload,
+  Send,
+  Loader2,
+  MessageCircle,
 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 
@@ -142,6 +147,20 @@ function ProjectDetailPage() {
 
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  /* 상품 AI 상세정보 */
+  const [detailProductId, setDetailProductId] = useState<number | null>(null);
+  const [detailText,      setDetailText]      = useState('');
+  const [detailFileName,  setDetailFileName]  = useState<string | null>(null);
+  const [detailSaving,    setDetailSaving]    = useState(false);
+  const detailFileRef = useRef<HTMLInputElement>(null);
+
+  /* AI 상담 테스트 */
+  const [aiMessages,  setAiMessages]  = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [aiInput,     setAiInput]     = useState('');
+  const [aiLoading,   setAiLoading]   = useState(false);
+  const [aiSessionId, setAiSessionId] = useState<number | null>(null);
+  const aiBottomRef = useRef<HTMLDivElement>(null);
   const [loadError, setLoadError] = useState('');
 
   /* ── 데이터 로드 ── */
@@ -175,6 +194,37 @@ function ProjectDetailPage() {
       setLoadError(e.message || '데이터를 불러오지 못했습니다.');
     }
   }, [id]);
+
+  const loadProducts = useCallback(async () => {
+    const prods = await apiFetch<Product[]>(`/products?projectId=${id}`);
+    setProducts(prods);
+  }, [id]);
+
+  const handleAiSend = useCallback(async () => {
+    const text = aiInput.trim();
+    if (!text || aiLoading || !project?.slug) return;
+    setAiInput('');
+    setAiMessages((prev) => [...prev, { role: 'user', content: text }]);
+    setAiLoading(true);
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3021';
+      const visitorId = `admin_${id}`;
+      const res = await fetch(`${API_BASE}/chat/${project.slug}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ visitorId, message: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || '오류');
+      setAiSessionId(data.sessionId);
+      setAiMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
+    } catch (err: any) {
+      setAiMessages((prev) => [...prev, { role: 'assistant', content: `오류: ${err.message}` }]);
+    } finally {
+      setAiLoading(false);
+      setTimeout(() => aiBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }, [aiInput, aiLoading, project, id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -379,12 +429,13 @@ function ProjectDetailPage() {
 
       {/* 탭 */}
       <Tabs defaultValue={initialTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="info">기본 정보</TabsTrigger>
           <TabsTrigger value="products">상품 관리</TabsTrigger>
           <TabsTrigger value="bank">계좌 설정</TabsTrigger>
           <TabsTrigger value="shipping">배송 정책</TabsTrigger>
           <TabsTrigger value="faq">FAQ</TabsTrigger>
+          <TabsTrigger value="ai">AI 상담</TabsTrigger>
         </TabsList>
 
         {/* ── 기본 정보 ── */}
@@ -639,6 +690,7 @@ function ProjectDetailPage() {
                           )}
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
+                          <Button size="icon" variant="ghost" title="AI 상세정보" onClick={() => { setDetailProductId(product.id); setDetailText(product.detail?.description ?? ''); setDetailFileName(product.detail?.fileName ?? null); }}><Bot className="w-4 h-4 text-purple-500" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => setEditingProduct(product)}><Pencil className="w-4 h-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => handleDeleteProduct(product.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                         </div>
@@ -905,7 +957,179 @@ function ProjectDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ── AI 상담 탭 ── */}
+        <TabsContent value="ai" className="mt-4 space-y-4">
+          {/* 상품별 AI 상세정보 관리 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Bot className="h-5 w-5 text-purple-500" />
+                상품 AI 상세정보
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">각 상품의 상세 설명 또는 파일(txt)을 등록하면 AI 상담에 활용됩니다.</p>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {products.map((product) => (
+                <div key={product.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium">{product.name}</p>
+                    {(product as any).detail?.fileName && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        첨부파일: {(product as any).detail.fileName}
+                      </p>
+                    )}
+                    {(product as any).detail?.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">
+                        설명: {(product as any).detail.description}
+                      </p>
+                    )}
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setDetailProductId(product.id);
+                    setDetailText((product as any).detail?.description ?? '');
+                    setDetailFileName((product as any).detail?.fileName ?? null);
+                  }}>
+                    {(product as any).detail ? '수정' : '등록'}
+                  </Button>
+                </div>
+              ))}
+              {products.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">상품 관리 탭에서 먼저 상품을 등록하세요.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* AI 상담 테스트 */}
+          {project?.slug && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-primary" />
+                  AI 상담 테스트
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">등록된 상품·프로젝트 정보를 바탕으로 AI 상담을 미리 테스트해보세요.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden flex flex-col" style={{ height: '420px' }}>
+                  {/* 메시지 영역 */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                    {aiMessages.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center mt-8">메시지를 입력해 AI 상담을 테스트해보세요.</p>
+                    )}
+                    {aiMessages.map((msg, idx) => (
+                      <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0
+                          ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white border shadow-sm'}`}>
+                          {msg.role === 'user'
+                            ? <span className="text-xs font-bold">나</span>
+                            : <Bot className="h-3.5 w-3.5 text-primary" />}
+                        </div>
+                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap
+                          ${msg.role === 'user'
+                            ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                            : 'bg-white border shadow-sm text-gray-800 rounded-tl-sm'}`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                    {aiLoading && (
+                      <div className="flex gap-2">
+                        <div className="w-7 h-7 rounded-full bg-white border shadow-sm flex items-center justify-center">
+                          <Bot className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div className="bg-white border shadow-sm rounded-2xl px-3 py-2">
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        </div>
+                      </div>
+                    )}
+                    <div ref={aiBottomRef} />
+                  </div>
+                  {/* 입력 */}
+                  <div className="px-3 py-2.5 bg-white border-t flex gap-2">
+                    <Input
+                      value={aiInput}
+                      onChange={(e) => setAiInput(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          await handleAiSend();
+                        }
+                      }}
+                      placeholder="질문을 입력하세요..."
+                      disabled={aiLoading}
+                      className="rounded-full text-sm"
+                    />
+                    <Button size="sm" onClick={handleAiSend} disabled={aiLoading || !aiInput.trim()} className="rounded-full h-9 w-9 p-0 flex-shrink-0">
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* 상품 AI 상세정보 다이얼로그 */}
+      {detailProductId !== null && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setDetailProductId(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">상품 AI 상세정보 등록</h3>
+              <button onClick={() => setDetailProductId(null)}><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <Label>상세 설명 (직접 입력)</Label>
+                <textarea
+                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  rows={5}
+                  placeholder="소재, 세탁 방법, 주의사항, 사이즈 정보 등 AI가 참고할 상세 내용을 입력하세요."
+                  value={detailText}
+                  onChange={(e) => setDetailText(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>파일 업로드 (txt, 최대 1MB)</Label>
+                <div className="mt-1 flex items-center gap-2">
+                  <input ref={detailFileRef} type="file" accept=".txt" className="hidden" onChange={(e) => setDetailFileName(e.target.files?.[0]?.name ?? null)} />
+                  <Button variant="outline" size="sm" onClick={() => detailFileRef.current?.click()}>
+                    <Upload className="h-3.5 w-3.5 mr-1" />파일 선택
+                  </Button>
+                  {detailFileName && <span className="text-sm text-muted-foreground">{detailFileName}</span>}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setDetailProductId(null)}>취소</Button>
+              <Button disabled={detailSaving} onClick={async () => {
+                setDetailSaving(true);
+                try {
+                  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3021';
+                  const token = localStorage.getItem('token');
+                  const fd = new FormData();
+                  if (detailText) fd.append('description', detailText);
+                  if (detailFileRef.current?.files?.[0]) fd.append('file', detailFileRef.current.files[0]);
+                  await fetch(`${API_BASE}/products/${detailProductId}/detail-file`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: fd,
+                  });
+                  await loadProducts();
+                  setDetailProductId(null);
+                } catch (err: any) {
+                  alert(`저장 오류: ${err.message}`);
+                } finally {
+                  setDetailSaving(false);
+                }
+              }}>
+                {detailSaving ? '저장 중...' : '저장'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

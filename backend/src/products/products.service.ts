@@ -110,5 +110,39 @@ export class ProductsService {
     if (!option) throw new NotFoundException('옵션을 찾을 수 없습니다.');
     return this.prisma.productOption.delete({ where: { id: optionId } });
   }
+
+  async upsertDetail(
+    productId: bigint,
+    userId: bigint,
+    data: { description?: string; fileName?: string; fileContent?: string },
+  ) {
+    const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다.');
+
+    const result = await this.prisma.productDetail.upsert({
+      where:  { productId },
+      create: { productId, ...data },
+      update: data,
+    });
+    return serialize(result);
+  }
+
+  async getDetail(productId: bigint, userId: bigint) {
+    const product = await this.prisma.product.findFirst({
+      where:   { id: productId, userId },
+      include: { detail: true },
+    });
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다.');
+    return serialize(product.detail);
+  }
+
+  async deleteDetail(productId: bigint, userId: bigint) {
+    const detail = await this.prisma.productDetail.findFirst({
+      where: { productId, product: { userId } },
+    });
+    if (!detail) throw new NotFoundException('상세 정보가 없습니다.');
+    await this.prisma.productDetail.delete({ where: { id: detail.id } });
+    return { ok: true };
+  }
 }
 

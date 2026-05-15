@@ -75,12 +75,15 @@ export class PaymentsService {
   }
 
   async uploadPayments(userId: bigint, records: { depositorName: string; amount: number }[]) {
+    // 미입금 상태인 주문의 결제 목록 조회
     const pendingPayments = await this.prisma.payment.findMany({
       where: { order: { userId }, status: 'pending' },
       include: { order: true },
     });
 
     let matchedCount = 0;
+    const unmatchedRecords: { depositorName: string; amount: number }[] = [];
+
     for (const record of records) {
       const match = pendingPayments.find(
         (p) =>
@@ -88,17 +91,92 @@ export class PaymentsService {
           p.amount === record.amount,
       );
       if (match) {
-        await this.prisma.payment.update({
-          where: { id: match.id },
-          data: {
-            depositorName: record.depositorName,
-            status: 'matched',
-            paidAt: new Date(),
-          },
-        });
+        await this.prisma.$transaction([
+          this.prisma.payment.update({
+            where: { id: match.id },
+            data: { depositorName: record.depositorName, status: 'matched', paidAt: new Date() },
+          }),
+          this.prisma.order.update({
+            where: { id: match.orderId },
+            data: { status: 'paid' },
+          }),
+        ]);
         matchedCount++;
+      } else {
+        unmatchedRecords.push(record);
       }
     }
-    return { total: records.length, matched: matchedCount };
+
+    // 미매칭 건은 UploadRecord에 저장 (중복 방지: 동일 입금자+금액+날짜가 없는 경우만)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    for (const rec of unmatchedRecords) {
+      const exists = await this.prisma.uploadRecord.findFirst({
+        where: {
+          userId,
+          depositorName: rec.depositorName,
+          amount: rec.amount,
+          status: 'unmatched',
+          uploadedAt: { gte: todayStart },
+        },
+      });
+      if (!exists) {
+        await this.prisma.uploadRecord.create({
+          data: { userId, depositorName: rec.depositorName, amount: rec.amount },
+        });
+      }
+    }
+
+    return { total: records.length, matched: matchedCount, unmatched: unmatchedRecords.length };
+  }
+
+  async findUnmatchedRecords(userId: bigint) {
+    const records = await this.prisma.uploadRecord.findMany({
+      where: { userId, status: 'unmatched' },
+      orderBy: { uploadedAt: 'desc' },
+    });
+    return records.map((r) =>
+      JSON.parse(JSON.stringify(r, (_, v) => (typeof v === 'bigint' ? Number(v) : v))),
+    );
+  }
+
+  async matchUploadRecord(recordId: bigint, userId: bigint, orderId: bigint) {
+    const record = await this.prisma.uploadRecord.findFirst({
+      where: { id: recordId, userId, status: 'unmatched' },
+    });
+    if (!record) throw new NotFoundException('업로드 레코드를 찾을 수 없습니다.');
+
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: { payment: true },
+    });
+    if (!order || !order.payment) throw new NotFoundException('주문을 찾을 수 없습니다.');
+
+    await this.prisma.$transaction([
+      this.prisma.payment.update({
+        where: { id: order.payment.id },
+        data: { depositorName: record.depositorName, status: 'matched', paidAt: new Date() },
+      }),
+      this.prisma.order.update({
+        where: { id: orderId },
+        data: { status: 'paid' },
+      }),
+      this.prisma.uploadRecord.update({
+        where: { id: recordId },
+        data: { status: 'matched', matchedOrderId: orderId },
+      }),
+    ]);
+
+    return { ok: true };
+  }
+
+  async deleteUploadRecord(recordId: bigint, userId: bigint) {
+    const record = await this.prisma.uploadRecord.findFirst({
+      where: { id: recordId, userId },
+    });
+    if (!record) throw new NotFoundException('업로드 레코드를 찾을 수 없습니다.');
+    await this.prisma.uploadRecord.delete({ where: { id: recordId } });
+    return { ok: true };
   }
 }

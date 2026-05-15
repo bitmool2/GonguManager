@@ -1,0 +1,24 @@
+feat: 주문관리 엑셀/옵션요약, 입금관리 개선, AI 상담 에이전트 추가
+
+## 주문관리
+- 탭별 옵션별 수량 요약 배지 표시 (취소 제외 자동 집계)
+- 엑셀 다운로드 (시트1: 전체주문 오름차순, 시트2: 옵션별주문내역)
+
+## 입금관리
+- 엑셀 업로드 시 입금자명+금액 자동 매칭 → 입금완료 처리
+- 미매칭 건 UploadRecord 저장, 불일치 탭에 노출
+- 수기 매핑 다이얼로그 (주문 검색 후 연결)
+- 은행별 다양한 헤더 자동 감지 (입금자/금액 컬럼, 잔액류 제외)
+- exceljs → xlsx(SheetJS)로 교체 (안정성 개선)
+
+## 가상계좌 테스트
+- POST /portone/test/simulate-vbank : 가상계좌 발급 시뮬레이션
+- POST /portone/test/simulate-paid  : 입금 완료 시뮬레이션
+- GET  /portone/test/order-status   : 주문/결제 상태 확인
+
+## AI 상담 에이전트 (Claude 기반)
+- Prisma: ProductDetail, ChatSession, ChatMessage 모델 추가
+- chat 모듈: 프로젝트+상품+FAQ 컨텍스트 자동 빌드 → Claude API 호출
+- 상품별 상세설명/txt 파일 업로드 API (products/:id/detail-file)
+- 주문서 페이지 우측 하단 플로팅 채팅 위젯 (ChatWidget)
+- 프로젝트 상세 'AI 상담' 탭: 상품 상세정보 관리 + 관리자 테스트 채팅

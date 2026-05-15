@@ -5,6 +5,8 @@ import {
   HttpCode,
   Logger,
   BadRequestException,
+  Get,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PortoneService } from './portone.service';
@@ -142,5 +144,142 @@ export class PortoneController {
     });
 
     return { ok: true };
+  }
+
+  /* ══════════════════════════════════════════════
+   * 로컬 개발 전용 테스트 엔드포인트
+   * NODE_ENV=production 에서는 400 응답
+   * ══════════════════════════════════════════════ */
+
+  /** 1단계: 가상계좌 발급 시뮬레이션 */
+  @Post('test/simulate-vbank')
+  @HttpCode(200)
+  @ApiOperation({ summary: '[테스트] 가상계좌 발급 시뮬레이션' })
+  async simulateVbank(
+    @Body() body: { orderNumber: string; depositorName?: string },
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new BadRequestException('테스트 엔드포인트는 production에서 사용 불가');
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber: body.orderNumber },
+      include: { payment: true },
+    });
+    if (!order) throw new BadRequestException(`주문을 찾을 수 없습니다: ${body.orderNumber}`);
+
+    const fakeImpUid = `test_imp_${Date.now()}`;
+    const fakeVbankNum = `110${Math.floor(Math.random() * 9000000 + 1000000)}`;
+    const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24시간 후
+
+    await this.prisma.payment.update({
+      where: { orderId: order.id },
+      data: {
+        impUid: fakeImpUid,
+        vbankNum: fakeVbankNum,
+        vbankName: '테스트은행',
+        vbankHolder: '공구매니저(테스트)',
+        vbankExpiry: expiry,
+      },
+    });
+
+    this.logger.log(`[TEST] 가상계좌 발급 시뮬레이션: ${body.orderNumber} → ${fakeVbankNum}`);
+
+    return {
+      ok: true,
+      imp_uid: fakeImpUid,
+      vbank_num: fakeVbankNum,
+      vbank_name: '테스트은행',
+      vbank_holder: '공구매니저(테스트)',
+      vbank_expiry: expiry,
+      message: '가상계좌 발급 시뮬레이션 완료. 다음 단계: POST /portone/test/simulate-paid',
+    };
+  }
+
+  /** 2단계: 입금 완료 시뮬레이션 */
+  @Post('test/simulate-paid')
+  @HttpCode(200)
+  @ApiOperation({ summary: '[테스트] 입금 완료 시뮬레이션' })
+  async simulatePaid(
+    @Body() body: { orderNumber: string; depositorName?: string },
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new BadRequestException('테스트 엔드포인트는 production에서 사용 불가');
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber: body.orderNumber },
+      include: { payment: true },
+    });
+    if (!order) throw new BadRequestException(`주문을 찾을 수 없습니다: ${body.orderNumber}`);
+    if (!order.payment?.impUid) {
+      throw new BadRequestException(
+        '가상계좌 발급 기록이 없습니다. 먼저 POST /portone/test/simulate-vbank 를 호출하세요.',
+      );
+    }
+
+    const depositorName = body.depositorName ?? '홍길동(테스트)';
+
+    await Promise.all([
+      this.prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'paid' },
+      }),
+      this.prisma.payment.update({
+        where: { orderId: order.id },
+        data: {
+          status: 'matched',
+          paidAt: new Date(),
+          depositorName,
+        },
+      }),
+    ]);
+
+    this.logger.log(`[TEST] 입금 완료 시뮬레이션: ${body.orderNumber} 입금자=${depositorName}`);
+
+    return {
+      ok: true,
+      orderNumber: body.orderNumber,
+      orderStatus: 'paid',
+      paymentStatus: 'matched',
+      depositorName,
+      paidAt: new Date(),
+      message: '입금 완료 시뮬레이션 완료. 주문 상태가 paid로 변경되었습니다.',
+    };
+  }
+
+  /** 현재 주문 + 결제 상태 조회 (테스트 확인용) */
+  @Get('test/order-status')
+  @ApiOperation({ summary: '[테스트] 주문·결제 상태 조회' })
+  async testOrderStatus(@Query('orderNumber') orderNumber: string) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new BadRequestException('테스트 엔드포인트는 production에서 사용 불가');
+    }
+    if (!orderNumber) throw new BadRequestException('orderNumber 쿼리 파라미터 필요');
+
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber },
+      include: { payment: true, items: true },
+    });
+    if (!order) throw new BadRequestException(`주문을 찾을 수 없습니다: ${orderNumber}`);
+
+    return {
+      orderNumber: order.orderNumber,
+      orderStatus: order.status,
+      totalPrice: order.totalPrice,
+      payment: order.payment
+        ? {
+            status: order.payment.status,
+            impUid: order.payment.impUid,
+            vbankNum: order.payment.vbankNum,
+            vbankName: order.payment.vbankName,
+            vbankHolder: order.payment.vbankHolder,
+            vbankExpiry: order.payment.vbankExpiry,
+            depositorName: order.payment.depositorName,
+            paidAt: order.payment.paidAt,
+          }
+        : null,
+      items: order.items,
+    };
   }
 }

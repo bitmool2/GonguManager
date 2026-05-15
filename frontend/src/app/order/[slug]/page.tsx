@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import ChatWidget from '@/components/ChatWidget';
 import { Package, CheckCircle, Banknote, Truck, Plus, Trash2, ShoppingCart, Clock } from 'lucide-react';
 
 interface ProductOption {
@@ -575,6 +576,9 @@ export default function PublicOrderPage() {
           </Button>
         </form>
       </div>
+
+      {/* AI 상담 플로팅 위젯 */}
+      <ChatWidget slug={slug} projectName={projectInfo?.name} />
     </div>
   );
 }

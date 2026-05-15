@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import { apiFetch } from '@/lib/api';
 import { useProject } from '@/contexts/ProjectContext';
-import { Search, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Eye, Download } from 'lucide-react';
 
 interface OrderItem {
   product: { name: string };
@@ -63,48 +64,84 @@ interface OrdersResponse {
   totalPages: number;
 }
 
+/* ── 옵션별 수량 집계 ── */
+interface OptionSummary {
+  productName: string;
+  optionName: string;
+  totalQty: number;
+  totalAmount: number;
+}
+
 const statusFilters = [
-  { value: 'all', label: '전체' },
-  { value: 'pending', label: '주문완료' },
-  { value: 'paid', label: '입금완료' },
+  { value: 'all',       label: '전체' },
+  { value: 'pending',   label: '주문완료' },
+  { value: 'paid',      label: '입금완료' },
   { value: 'preparing', label: '준비중' },
-  { value: 'shipping', label: '배송중' },
+  { value: 'shipping',  label: '배송중' },
   { value: 'completed', label: '배송완료' },
-  { value: 'canceled', label: '취소' },
+  { value: 'canceled',  label: '취소' },
 ];
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info' }> = {
-  pending: { label: '주문완료', variant: 'secondary' },
-  paid: { label: '입금완료', variant: 'info' },
-  preparing: { label: '준비중', variant: 'warning' },
-  shipping: { label: '배송중', variant: 'default' },
+  pending:   { label: '주문완료', variant: 'secondary' },
+  paid:      { label: '입금완료', variant: 'info' },
+  preparing: { label: '준비중',   variant: 'warning' },
+  shipping:  { label: '배송중',   variant: 'default' },
   completed: { label: '배송완료', variant: 'success' },
-  canceled: { label: '취소', variant: 'destructive' },
+  canceled:  { label: '취소',     variant: 'destructive' },
 };
 
+function buildOptionSummary(orders: Order[]): OptionSummary[] {
+  const map = new Map<string, OptionSummary>();
+  for (const order of orders) {
+    for (const item of order.items ?? []) {
+      const productName = item.product?.name ?? '-';
+      const optionName  = item.option?.optionName ?? '옵션 없음';
+      const key         = `${productName}__${optionName}`;
+      if (!map.has(key)) {
+        map.set(key, { productName, optionName, totalQty: 0, totalAmount: 0 });
+      }
+      const row = map.get(key)!;
+      row.totalQty    += item.quantity;
+      row.totalAmount += item.price;
+    }
+  }
+  return Array.from(map.values());
+}
+
 export default function OrdersPage() {
-  const [data, setData] = useState<OrdersResponse | null>(null);
-  const [status, setStatus] = useState('all');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [data,          setData]          = useState<OrdersResponse | null>(null);
+  const [status,        setStatus]        = useState('all');
+  const [search,        setSearch]        = useState('');
+  const [page,          setPage]          = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [allOrders,     setAllOrders]     = useState<Order[]>([]);
+  const [downloading,   setDownloading]   = useState(false);
   const { selectedProject } = useProject();
 
+  /* ── 페이지 단위 목록 ── */
   const fetchOrders = useCallback(async () => {
     const params = new URLSearchParams();
     if (status !== 'all') params.set('status', status);
-    if (search) params.set('search', search);
-    if (selectedProject) params.set('projectId', String(selectedProject.id));
-    params.set('page', String(page));
+    if (search)           params.set('search', search);
+    if (selectedProject)  params.set('projectId', String(selectedProject.id));
+    params.set('page',  String(page));
     params.set('limit', '20');
-
     const res = await apiFetch<OrdersResponse>(`/orders?${params}`);
     setData(res);
   }, [status, search, page, selectedProject]);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  /* ── 탭 전체 데이터 (옵션 요약용) ── */
+  const fetchAllForSummary = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (status !== 'all') params.set('status', status);
+    if (selectedProject)  params.set('projectId', String(selectedProject.id));
+    const res = await apiFetch<Order[]>(`/orders/export?${params}`);
+    setAllOrders(Array.isArray(res) ? res : []);
+  }, [status, selectedProject]);
+
+  useEffect(() => { fetchOrders(); },         [fetchOrders]);
+  useEffect(() => { fetchAllForSummary(); },  [fetchAllForSummary]);
 
   const handleStatusChange = async (orderId: number, newStatus: string) => {
     await apiFetch(`/orders/${orderId}/status`, {
@@ -112,6 +149,7 @@ export default function OrdersPage() {
       body: JSON.stringify({ status: newStatus }),
     });
     await fetchOrders();
+    await fetchAllForSummary();
     if (newStatus === 'canceled') {
       setSelectedOrder(null);
     } else if (selectedOrder?.id === orderId) {
@@ -119,8 +157,95 @@ export default function OrdersPage() {
     }
   };
 
+  /* ── 엑셀 다운로드 ── */
+  const handleExcelDownload = async () => {
+    setDownloading(true);
+    try {
+      const params = new URLSearchParams();
+      if (status !== 'all') params.set('status', status);
+      if (selectedProject)  params.set('projectId', String(selectedProject.id));
+      const orders = await apiFetch<Order[]>(`/orders/export?${params}`);
+
+      const wb = XLSX.utils.book_new();
+
+      /* ── 시트 1: 전체 주문 (주문일시 오름차순) ── */
+      const sheet1Rows: (string | number)[][] = [
+        ['주문번호', '주문일시', '고객명', '연락처', '주소', '입금자명', '상품명', '옵션', '수량', '단가', '상품금액', '총금액', '주문상태', '입금상태', '메모'],
+      ];
+      for (const order of orders) {
+        const items = order.items ?? [];
+        if (items.length === 0) {
+          sheet1Rows.push([
+            order.orderNumber,
+            new Date(order.createdAt).toLocaleString('ko-KR'),
+            order.customerName,
+            order.phone,
+            order.address,
+            order.depositName || '',
+            '', '', '', '', '',
+            order.totalPrice,
+            statusMap[order.status]?.label ?? order.status,
+            order.payment?.status ?? '',
+            order.memo || '',
+          ]);
+        } else {
+          items.forEach((item, idx) => {
+            sheet1Rows.push([
+              idx === 0 ? order.orderNumber : '',
+              idx === 0 ? new Date(order.createdAt).toLocaleString('ko-KR') : '',
+              idx === 0 ? order.customerName : '',
+              idx === 0 ? order.phone : '',
+              idx === 0 ? order.address : '',
+              idx === 0 ? (order.depositName || '') : '',
+              item.product?.name ?? '',
+              item.option?.optionName ?? '',
+              item.quantity,
+              Math.round(item.price / item.quantity),
+              item.price,
+              idx === 0 ? order.totalPrice : '',
+              idx === 0 ? (statusMap[order.status]?.label ?? order.status) : '',
+              idx === 0 ? (order.payment?.status ?? '') : '',
+              idx === 0 ? (order.memo || '') : '',
+            ]);
+          });
+        }
+      }
+      const ws1 = XLSX.utils.aoa_to_sheet(sheet1Rows);
+      ws1['!cols'] = [
+        { wch: 22 }, { wch: 20 }, { wch: 10 }, { wch: 14 }, { wch: 30 },
+        { wch: 10 }, { wch: 20 }, { wch: 20 }, { wch: 6 },  { wch: 10 },
+        { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 20 },
+      ];
+      XLSX.utils.book_append_sheet(wb, ws1, '전체주문');
+
+      /* ── 시트 2: 옵션별 발주 집계 ── */
+      const summary = buildOptionSummary(orders);
+      const sheet2Rows: (string | number)[][] = [
+        ['상품명', '옵션', '총 수량', '총 금액'],
+        ...summary.map((r) => [r.productName, r.optionName, r.totalQty, r.totalAmount]),
+      ];
+      // 합계 행
+      const totalQty    = summary.reduce((s, r) => s + r.totalQty,    0);
+      const totalAmount = summary.reduce((s, r) => s + r.totalAmount, 0);
+      sheet2Rows.push(['합계', '', totalQty, totalAmount]);
+
+      const ws2 = XLSX.utils.aoa_to_sheet(sheet2Rows);
+      ws2['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, ws2, '옵션별주문내역');
+
+      const tabLabel = statusFilters.find((f) => f.value === status)?.label ?? '전체';
+      const projectLabel = selectedProject?.name ?? '전체';
+      const dateStr = new Date().toLocaleDateString('ko-KR').replace(/\. /g, '-').replace('.', '');
+      XLSX.writeFile(wb, `주문_${projectLabel}_${tabLabel}_${dateStr}.xlsx`);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('ko-KR').format(amount) + '원';
+
+  const optionSummary = buildOptionSummary(allOrders.filter((o) => o.status !== 'canceled' || status === 'canceled'));
 
   return (
     <div className="space-y-6">
@@ -144,19 +269,56 @@ export default function OrdersPage() {
                 </Button>
               ))}
             </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="고객명, 주문번호 검색"
-                className="pl-9"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              />
+            <div className="flex gap-2">
+              <div className="relative w-full sm:w-56">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="고객명, 주문번호 검색"
+                  className="pl-9"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExcelDownload}
+                disabled={downloading}
+                className="whitespace-nowrap"
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                {downloading ? '생성 중...' : '엑셀 다운로드'}
+              </Button>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* ── 옵션별 수량 요약 ── */}
+          {optionSummary.length > 0 && (
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">
+                옵션별 수량 요약
+                <span className="ml-1 font-normal">
+                  ({statusFilters.find((f) => f.value === status)?.label ?? '전체'} 기준
+                  {status !== 'canceled' ? ', 취소 제외' : ''})
+                </span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {optionSummary.map((row, idx) => (
+                  <div key={idx} className="flex items-center gap-1 text-xs bg-background border rounded px-2.5 py-1">
+                    <span className="font-medium">{row.productName}</span>
+                    {row.optionName !== '옵션 없음' && (
+                      <span className="text-muted-foreground">/ {row.optionName}</span>
+                    )}
+                    <span className="ml-1 font-bold text-primary">{row.totalQty}개</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── 주문 목록 ── */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -179,9 +341,15 @@ export default function OrdersPage() {
                       key={order.id}
                       className={`border-b last:border-0 hover:bg-muted/50 ${isCanceled ? 'opacity-50' : ''}`}
                     >
-                      <td className={`py-3 font-mono text-xs ${isCanceled ? 'line-through text-muted-foreground' : ''}`}>{order.orderNumber}</td>
-                      <td className={`py-3 whitespace-nowrap ${isCanceled ? 'line-through text-muted-foreground' : ''}`}>{new Date(order.createdAt).toLocaleDateString('ko-KR')}</td>
-                      <td className={`py-3 whitespace-nowrap ${isCanceled ? 'line-through text-muted-foreground' : ''}`}>{order.customerName}</td>
+                      <td className={`py-3 font-mono text-xs ${isCanceled ? 'line-through text-muted-foreground' : ''}`}>
+                        {order.orderNumber}
+                      </td>
+                      <td className={`py-3 whitespace-nowrap ${isCanceled ? 'line-through text-muted-foreground' : ''}`}>
+                        {new Date(order.createdAt).toLocaleDateString('ko-KR')}
+                      </td>
+                      <td className={`py-3 whitespace-nowrap ${isCanceled ? 'line-through text-muted-foreground' : ''}`}>
+                        {order.customerName}
+                      </td>
                       <td className="py-3">
                         <div className="space-y-0.5">
                           {order.items && order.items.length > 0 ? (
@@ -199,16 +367,14 @@ export default function OrdersPage() {
                           )}
                         </div>
                       </td>
-                      <td className={`py-3 whitespace-nowrap ${isCanceled ? 'line-through text-muted-foreground' : ''}`}>{formatCurrency(order.totalPrice)}</td>
+                      <td className={`py-3 whitespace-nowrap ${isCanceled ? 'line-through text-muted-foreground' : ''}`}>
+                        {formatCurrency(order.totalPrice)}
+                      </td>
                       <td className="py-3">
                         <Badge variant={s.variant}>{s.label}</Badge>
                       </td>
                       <td className="py-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedOrder(order)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                       </td>
@@ -232,20 +398,10 @@ export default function OrdersPage() {
                 총 {data.total}건 중 {(page - 1) * 20 + 1}-{Math.min(page * 20, data.total)}건
               </p>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= data.totalPages}
-                  onClick={() => setPage(page + 1)}
-                >
+                <Button variant="outline" size="sm" disabled={page >= data.totalPages} onClick={() => setPage(page + 1)}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -254,6 +410,7 @@ export default function OrdersPage() {
         </CardContent>
       </Card>
 
+      {/* ── 주문 상세 다이얼로그 ── */}
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -305,11 +462,11 @@ export default function OrdersPage() {
                             <p className="text-xs text-muted-foreground">옵션: {item.option.optionName}</p>
                           )}
                           <p className="text-xs text-muted-foreground">
-                            {formatCurrency(item.price)} × {item.quantity}개
+                            {formatCurrency(Math.round(item.price / item.quantity))} × {item.quantity}개
                           </p>
                         </div>
                         <span className="text-sm font-semibold whitespace-nowrap">
-                          {formatCurrency(item.price * item.quantity)}
+                          {formatCurrency(item.price)}
                         </span>
                       </div>
                     ))}
@@ -364,9 +521,7 @@ export default function OrdersPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {statusFilters.filter((f) => f.value !== 'all').map((f) => (
-                      <SelectItem key={f.value} value={f.value}>
-                        {f.label}
-                      </SelectItem>
+                      <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

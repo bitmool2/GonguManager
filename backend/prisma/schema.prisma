@@ -19,11 +19,12 @@ model User {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  products  Product[]
-  orders    Order[]
-  faqs      Faq[]
-  settings  UserSetting?
-  projects  Project[]
+  products      Product[]
+  orders        Order[]
+  faqs          Faq[]
+  settings      UserSetting?
+  projects      Project[]
+  uploadRecords UploadRecord[]
 
   @@map("users")
 }
@@ -85,10 +86,25 @@ model Product {
   project Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
   options ProductOption[]
   items   OrderItem[]
+  detail  ProductDetail?
 
   @@index([userId])
   @@index([projectId])
   @@map("products")
+}
+
+model ProductDetail {
+  id          BigInt   @id @default(autoincrement())
+  productId   BigInt   @unique @map("product_id")
+  description String?  @db.Text
+  fileName    String?  @map("file_name") @db.VarChar(255)
+  fileContent String?  @map("file_content") @db.LongText
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_details")
 }
 
 model ProductOption {
@@ -198,4 +214,45 @@ model Faq {
   @@index([userId])
   @@index([projectId])
   @@map("faqs")
+}
+
+model UploadRecord {
+  id             BigInt    @id @default(autoincrement())
+  userId         BigInt    @map("user_id")
+  depositorName  String    @map("depositor_name") @db.VarChar(100)
+  amount         Int
+  status         String    @default("unmatched") @db.VarChar(20)
+  matchedOrderId BigInt?   @map("matched_order_id")
+  uploadedAt     DateTime  @default(now()) @map("uploaded_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("upload_records")
+}
+
+model ChatSession {
+  id        BigInt        @id @default(autoincrement())
+  projectId BigInt        @map("project_id")
+  visitorId String        @map("visitor_id") @db.VarChar(100)
+  createdAt DateTime      @default(now()) @map("created_at")
+  messages  ChatMessage[]
+
+  @@index([projectId])
+  @@index([visitorId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        BigInt   @id @default(autoincrement())
+  sessionId BigInt   @map("session_id")
+  role      String   @db.VarChar(20)
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("chat_messages")
 }

@@ -10,7 +10,9 @@ export class OrdersService {
     userId: bigint,
     params: { status?: string; search?: string; page?: number; limit?: number; projectId?: number },
   ) {
-    const { status, search, page = 1, limit = 20, projectId } = params;
+    const { status, search, projectId } = params;
+    const page  = Number(params.page)  || 1;
+    const limit = Number(params.limit) || 20;
     const where: any = { userId };
 
     if (status && status !== 'all') where.status = status;
@@ -163,6 +165,27 @@ export class OrdersService {
       pendingShipments,
       totalRevenue: totalRevenue._sum.totalPrice || 0,
     };
+  }
+
+  async exportAll(
+    userId: bigint,
+    params: { status?: string; projectId?: number },
+  ) {
+    const { status, projectId } = params;
+    const where: any = { userId };
+    if (status && status !== 'all') where.status = status;
+    if (projectId) where.projectId = BigInt(projectId);
+
+    const orders = await this.prisma.order.findMany({
+      where,
+      include: {
+        items: { include: { product: true, option: true } },
+        payment: true,
+        shipment: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return orders.map(this.serializeOrder);
   }
 
   async getRecentOrders(userId: bigint, projectId?: bigint) {

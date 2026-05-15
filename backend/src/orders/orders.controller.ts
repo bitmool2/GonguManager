@@ -40,6 +40,18 @@ export class OrdersController {
     });
   }
 
+  @Get('orders/export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '주문 전체 내보내기 (엑셀용)' })
+  async exportAll(
+    @CurrentUser() user: any,
+    @Query('status') status?: string,
+    @Query('projectId') projectId?: number,
+  ) {
+    return this.ordersService.exportAll(BigInt(user.id), { status, projectId });
+  }
+
   @Get('orders/dashboard')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

@@ -8,7 +8,11 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -116,5 +120,42 @@ export class ProductsController {
     @CurrentUser() user: any,
   ) {
     return this.productsService.deleteOption(BigInt(optionId), BigInt(user.id));
+  }
+
+  /* ── 상품 상세 파일 ── */
+
+  @Post(':id/detail-file')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: '상품 상세 파일 업로드 (txt/pdf)' })
+  async uploadDetailFile(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('description') description: string,
+    @CurrentUser() user: any,
+  ) {
+    if (!file && !description) throw new BadRequestException('파일 또는 설명 중 하나는 필요합니다.');
+    return this.productsService.upsertDetail(BigInt(id), BigInt(user.id), {
+      description,
+      fileName:    file?.originalname,
+      fileContent: file ? file.buffer.toString('utf-8') : undefined,
+    });
+  }
+
+  @Get(':id/detail-file')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '상품 상세 정보 조회' })
+  async getDetailFile(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.productsService.getDetail(BigInt(id), BigInt(user.id));
+  }
+
+  @Delete(':id/detail-file')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '상품 상세 정보 삭제' })
+  async deleteDetailFile(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.productsService.deleteDetail(BigInt(id), BigInt(user.id));
   }
 }
