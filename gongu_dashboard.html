@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공구메이트 — 판매자 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0e0e10;
+  --bg2: #16161a;
+  --bg3: #1e1e24;
+  --bg4: #26262e;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0eff4;
+  --text2: #9896a8;
+  --text3: #5f5d70;
+  --accent: #7c6ff7;
+  --accent2: #9d97fa;
+  --green: #2ecc8a;
+  --green-bg: rgba(46,204,138,0.12);
+  --red: #f06060;
+  --red-bg: rgba(240,96,96,0.12);
+  --amber: #f0a030;
+  --amber-bg: rgba(240,160,48,0.12);
+  --blue: #4090f0;
+  --blue-bg: rgba(64,144,240,0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.layout { display:flex; min-height:100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0;
+}
+.logo {
+  padding: 0 20px 24px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent2);
+  letter-spacing: -0.5px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.logo span { color: var(--text3); font-size:11px; font-weight:400; display:block; margin-top:2px; letter-spacing:0; }
+.nav-item {
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  border-radius: 0;
+  color: var(--text2);
+  font-size: 13px;
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: rgba(124,111,247,0.1); color: var(--accent2); border-left-color: var(--accent); }
+.nav-icon { width:18px; text-align:center; font-size:15px; }
+.nav-section { padding: 14px 20px 6px; font-size:10px; color:var(--text3); letter-spacing:0.08em; font-weight:600; text-transform:uppercase; }
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+.seller-info { display:flex; align-items:center; gap:10px; }
+.seller-avatar {
+  width:34px; height:34px; border-radius:50%;
+  background: linear-gradient(135deg, var(--accent), #c084fc);
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; font-weight:700; color:#fff; flex-shrink:0;
+}
+.seller-name { font-size:13px; font-weight:600; color:var(--text); }
+.seller-plan { font-size:11px; color:var(--accent2); }
+
+/* Main */
+.main { flex:1; overflow-x:hidden; }
+.topbar {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items:center;
+  justify-content:space-between;
+  background: var(--bg2);
+}
+.page-title { font-size:18px; font-weight:700; }
+.topbar-actions { display:flex; gap:10px; align-items:center; }
+.btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  display:flex; align-items:center; gap:6px;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-ghost { background: var(--bg3); color:var(--text2); border:1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg4); color:var(--text); }
+.btn-sm { padding: 5px 11px; font-size:12px; }
+.btn-danger { background: var(--red-bg); color:var(--red); }
+.btn-success { background: var(--green-bg); color:var(--green); }
+
+.content { padding: 24px 28px; }
+
+/* Stats Row */
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  position:relative;
+  overflow:hidden;
+}
+.stat-card::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:2px;
+}
+.stat-card.purple::before { background: var(--accent); }
+.stat-card.green::before { background: var(--green); }
+.stat-card.amber::before { background: var(--amber); }
+.stat-card.blue::before { background: var(--blue); }
+.stat-label { font-size:11px; color:var(--text3); font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; }
+.stat-value { font-size:26px; font-weight:700; font-family:'JetBrains Mono', monospace; letter-spacing:-1px; }
+.stat-value.purple { color:var(--accent2); }
+.stat-value.green { color:var(--green); }
+.stat-value.amber { color:var(--amber); }
+.stat-value.blue { color:var(--blue); }
+.stat-sub { font-size:12px; color:var(--text3); margin-top:4px; }
+.stat-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:11px; font-weight:600; padding:2px 7px; border-radius:20px;
+}
+.badge-green { background:var(--green-bg); color:var(--green); }
+.badge-red { background:var(--red-bg); color:var(--red); }
+.badge-amber { background:var(--amber-bg); color:var(--amber); }
+.badge-blue { background:var(--blue-bg); color:var(--blue); }
+.badge-gray { background:var(--bg4); color:var(--text2); }
+.badge-purple { background:rgba(124,111,247,0.15); color:var(--accent2); }
+
+/* Grid 2col */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.grid-3 { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px; }
+
+/* Panel */
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow:hidden;
+}
+.panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.panel-title { font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.panel-body { padding:0; }
+
+/* Table */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; }
+th {
+  padding: 10px 14px;
+  font-size:11px; font-weight:600; color:var(--text3);
+  text-align:left; text-transform:uppercase; letter-spacing:0.05em;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+  white-space:nowrap;
+}
+td {
+  padding: 12px 14px;
+  font-size:13px; color:var(--text);
+  border-bottom: 1px solid var(--border);
+  vertical-align:middle;
+}
+tr:last-child td { border-bottom:none; }
+tr:hover td { background: var(--bg3); }
+.mono { font-family:'JetBrains Mono',monospace; font-size:12px; }
+.text2 { color:var(--text2); }
+.text3 { color:var(--text3); }
+
+/* Progress bar */
+.progress-bar {
+  height:4px; background:var(--bg4); border-radius:2px; overflow:hidden; margin-top:4px;
+}
+.progress-fill { height:100%; border-radius:2px; transition: width 0.5s; }
+
+/* Gongu card */
+.gongu-card {
+  padding:16px 18px;
+  border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; gap:14px;
+  cursor:pointer; transition:background 0.1s;
+}
+.gongu-card:hover { background:var(--bg3); }
+.gongu-card:last-child { border-bottom:none; }
+.gongu-thumb {
+  width:42px; height:42px; border-radius:8px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px;
+}
+.gongu-info { flex:1; min-width:0; }
+.gongu-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gongu-meta { font-size:12px; color:var(--text3); margin-top:2px; display:flex; gap:10px; }
+.gongu-right { text-align:right; flex-shrink:0; }
+.gongu-amount { font-size:14px; font-weight:700; font-family:'JetBrains Mono',monospace; }
+.gongu-orders { font-size:12px; color:var(--text3); }
+
+/* Deposit match */
+.match-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px; border-bottom:1px solid var(--border);
+}
+.match-row:last-child { border-bottom:none; }
+.match-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.match-info { flex:1; min-width:0; }
+.match-name { font-size:13px; font-weight:500; }
+.match-detail { font-size:11px; color:var(--text3); }
+.match-amount { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; flex-shrink:0; }
+
+/* Notification dot */
+.notif-dot {
+  width:8px; height:8px; border-radius:50%;
+  background:var(--red); display:inline-block; flex-shrink:0;
+}
+
+/* Timeline */
+.timeline-item { display:flex; gap:12px; padding:10px 18px; }
+.timeline-dot {
+  width:8px; height:8px; border-radius:50%;
+  margin-top:5px; flex-shrink:0;
+}
+.timeline-content { flex:1; }
+.timeline-text { font-size:13px; }
+.timeline-time { font-size:11px; color:var(--text3); margin-top:2px; }
+
+/* Action panel */
+.action-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; }
+.action-btn {
+  padding:12px 14px; border-radius:var(--radius-sm);
+  background:var(--bg3); border:1px solid var(--border);
+  cursor:pointer; text-align:left; transition:all 0.15s;
+  font-family:inherit;
+}
+.action-btn:hover { background:var(--bg4); border-color:var(--border2); }
+.action-btn-icon { font-size:18px; margin-bottom:6px; display:block; }
+.action-btn-label { font-size:12px; font-weight:600; color:var(--text); display:block; }
+.action-btn-desc { font-size:11px; color:var(--text3); margin-top:2px; display:block; }
+
+/* Modal */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.7); z-index:100;
+  align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:var(--bg2); border:1px solid var(--border2);
+  border-radius:16px; width:500px; max-width:95vw;
+  max-height:90vh; overflow-y:auto;
+}
+.modal-header {
+  padding:20px 24px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.modal-title { font-size:16px; font-weight:700; }
+.modal-close { background:none; border:none; color:var(--text3); cursor:pointer; font-size:20px; }
+.modal-body { padding:20px 24px; }
+.form-group { margin-bottom:16px; }
+.form-label { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:6px; display:block; }
+.form-input {
+  width:100%; padding:10px 12px;
+  background:var(--bg3); border:1px solid var(--border);
+  border-radius:var(--radius-sm); color:var(--text);
+  font-size:13px; font-family:inherit; outline:none;
+  transition:border-color 0.15s;
+}
+.form-input:focus { border-color:var(--accent); }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.modal-footer { padding:16px 24px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
+
+/* Tabs */
+.tab-bar { display:flex; gap:0; border-bottom:1px solid var(--border); }
+.tab {
+  padding:10px 18px; font-size:13px; font-weight:500;
+  cursor:pointer; color:var(--text3); border-bottom:2px solid transparent;
+  transition:all 0.15s; background:none; border-top:none; border-left:none; border-right:none;
+  font-family:inherit;
+}
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--accent2); border-bottom-color:var(--accent); }
+
+/* Toast */
+.toast-container { position:fixed; bottom:24px; right:24px; z-index:200; display:flex; flex-direction:column; gap:8px; }
+.toast {
+  background:var(--bg3); border:1px solid var(--border2);
+  border-radius:10px; padding:12px 16px;
+  font-size:13px; display:flex; align-items:center; gap:10px;
+  min-width:260px; max-width:360px;
+  animation: slideIn 0.2s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+@keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:none; opacity:1; } }
+.toast-icon { font-size:16px; flex-shrink:0; }
+.toast-text { flex:1; }
+.toast-close { background:none; border:none; color:var(--text3); cursor:pointer; font-size:16px; flex-shrink:0; }
+
+.divider { height:1px; background:var(--border); margin:0; }
+.mt-16 { margin-top:16px; }
+.empty-state { padding:32px; text-align:center; color:var(--text3); font-size:13px; }
+.dot-live { width:7px; height:7px; border-radius:50%; background:var(--green); display:inline-block; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      공구메이트
+      <span>올인원 공구 운영 도구</span>
+    </div>
+    <div class="nav-section">운영</div>
+    <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">◈</span> 대시보드</div>
+    <div class="nav-item" onclick="showPage('gongu')"><span class="nav-icon">📦</span> 공구 관리</div>
+    <div class="nav-item" onclick="showPage('orders')"><span class="nav-icon">📋</span> 주문 관리</div>
+    <div class="nav-item" onclick="showPage('deposit')"><span class="nav-icon">💳</span> 입금 확인</div>
+    <div class="nav-item" onclick="showPage('delivery')"><span class="nav-icon">🚚</span> 배송 관리</div>
+    <div class="nav-section">성장</div>
+    <div class="nav-item" onclick="showPage('crm')"><span class="nav-icon">👥</span> 구매자 CRM</div>
+    <div class="nav-item" onclick="showPage('ai')"><span class="nav-icon">✦</span> AI 홍보물</div>
+    <div class="nav-item" onclick="showPage('settlement')"><span class="nav-icon">📊</span> 정산·분석</div>
+    <div class="nav-section">설정</div>
+    <div class="nav-item" onclick="showPage('settings')"><span class="nav-icon">⚙</span> 계정 설정</div>
+    <div class="sidebar-footer">
+      <div class="seller-info">
+        <div class="seller-avatar">김</div>
+        <div>
+          <div class="seller-name">@kimfashion_</div>
+          <div class="seller-plan">프로 플랜</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main" id="main-content">
+    <!-- DASHBOARD PAGE -->
+    <div id="page-dashboard">
+      <div class="topbar">
+        <div>
+          <div class="page-title">대시보드</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;display:flex;align-items:center;gap:6px;">
+            <span class="dot-live"></span> 실시간 업데이트 중
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost btn-sm" onclick="showNotifications()">🔔 <span id="notif-count" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;">3</span></button>
+          <button class="btn btn-primary" onclick="openNewGongu()">+ 새 공구 만들기</button>
+        </div>
+      </div>
+      <div class="content">
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card purple">
+            <div class="stat-label">진행 중 공구</div>
+            <div class="stat-value purple">3</div>
+            <div class="stat-sub">마감 임박 <span class="stat-badge badge-amber">1건</span></div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">오늘 주문</div>
+            <div class="stat-value green">47</div>
+            <div class="stat-sub">어제 대비 <span class="stat-badge badge-green">↑ 23%</span></div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">미입금 건수</div>
+            <div class="stat-value amber" id="unpaid-count">12</div>
+            <div class="stat-sub">오늘 마감 <span class="stat-badge badge-red">5건</span></div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">이번달 매출</div>
+            <div class="stat-value blue">847만</div>
+            <div class="stat-sub">순수익 <span class="stat-badge badge-blue">약 102만원</span></div>
+          </div>
+        </div>
+
+        <!-- Main grid -->
+        <div class="grid-3">
+          <!-- Active Gongus -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">📦 진행 중 공구</div>
+              <button class="btn btn-ghost btn-sm" onclick="showPage('gongu')">전체 보기</button>
+            </div>
+            <div class="panel-body">
+              <div class="gongu-card" onclick="showGonguDetail('a1')">
+                <div class="gongu-thumb" style="background:rgba(124,111,247,0.15);">👗</div>
+                <div class="gongu-info">
+                  <div class="gongu-name">린넨 썸머 세트 공구</div>
+                  <div class="gongu-meta">
+                    <span>마감 D-2</span>
+                    <span>주문 38건</span>
+                  </div>
+                  <div class="progress-bar" style="margin-top:6px;">
+                    <div class="progress-fill" style="width:76%;background:var(--accent);"></div>
+                  </div>
+                </div>
+                <div class="gongu-right">
+                  <div class="gongu-amount" style="color:var(--accent2);">38건</div>
+                  <div class="gongu-orders"><span class="stat-badge badge-green">입금 31</span></div>
+                </div>
+              </div>
+              <div class="gongu-card" onclick="showGonguDetail('a2')">
+                <div class="gongu-thumb" style="background:rgba(240,160,48,0.15);">👜</div>
+                <div class="gongu-info">
+                  <div class="gongu-name">가죽 크로스백 공구</div>
+                  <div class="gongu-meta">
+                    <span>마감 D-5</span>
+                    <span>주문 21건</span>
+                  </div>
+                  <div class="progress-bar" style="margin-top:6px;">
+                    <div class="progress-fill" style="width:42%;background:var(--amber);"></div>
+                  </div>
+                </div>
+                <div class="gongu-right">
+                  <div class="gongu-amount" style="color:var(--amber);">21건</div>
+                  <div class="gongu-orders"><span class="stat-badge badge-green">입금 18</span></div>
+                </div>
+              </div>
+              <div class="gongu-card" onclick="showGonguDetail('a3')">
+                <div class="gongu-thumb" style="background:rgba(64,144,240,0.15);">🧴</div>
+                <div class="gongu-info">
+                  <div class="gongu-name">히알루론산 앰플 공구</div>
+                  <div class="gongu-meta">
+                    <span>마감 D-9</span>
+                    <span>주문 54건</span>
+                  </div>
+                  <div class="progress-bar" style="margin-top:6px;">
+                    <div class="progress-fill" style="width:88%;background:var(--green);"></div>
+                  </div>
+                </div>
+                <div class="gongu-right">
+                  <div class="gongu-amount" style="color:var(--green);">54건</div>
+                  <div class="gongu-orders"><span class="stat-badge badge-green">입금 51</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right column -->
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <!-- Quick actions -->
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title">⚡ 빠른 실행</div>
+              </div>
+              <div class="action-grid">
+                <button class="action-btn" onclick="openDepositModal()">
+                  <span class="action-btn-icon">💳</span>
+                  <span class="action-btn-label">입금 자동 확인</span>
+                  <span class="action-btn-desc">미매칭 12건 대기</span>
+                </button>
+                <button class="action-btn" onclick="openDeliveryModal()">
+                  <span class="action-btn-icon">📨</span>
+                  <span class="action-btn-label">배송 알림 발송</span>
+                  <span class="action-btn-desc">발송 대기 8건</span>
+                </button>
+                <button class="action-btn" onclick="openAIModal()">
+                  <span class="action-btn-icon">✦</span>
+                  <span class="action-btn-label">AI 공지문 생성</span>
+                  <span class="action-btn-desc">공구 홍보물 제작</span>
+                </button>
+                <button class="action-btn" onclick="showPage('settlement')">
+                  <span class="action-btn-icon">📊</span>
+                  <span class="action-btn-label">정산 보기</span>
+                  <span class="action-btn-desc">이번달 수익 현황</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Activity -->
+            <div class="panel" style="flex:1;">
+              <div class="panel-header">
+                <div class="panel-title">🔔 실시간 알림</div>
+              </div>
+              <div id="activity-feed">
+                <div class="timeline-item">
+                  <div class="timeline-dot" style="background:var(--green);"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-text">이수연 님 — 린넨 세트 주문 완료</div>
+                    <div class="timeline-time">방금 전</div>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-dot" style="background:var(--blue);"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-text">박민지 님 입금 자동 매칭 완료</div>
+                    <div class="timeline-time">2분 전</div>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-dot" style="background:var(--amber);"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-text">미입금 리마인더 — 5건 자동 발송</div>
+                    <div class="timeline-time">12분 전</div>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-dot" style="background:var(--green);"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-text">김하늘 님 배송 완료 확인</div>
+                    <div class="timeline-time">34분 전</div>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-dot" style="background:var(--red);"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-text">CS — 최유리 님 교환 요청</div>
+                    <div class="timeline-time">1시간 전</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Unpaid table -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">💳 미입금 현황 <span class="stat-badge badge-amber" style="margin-left:4px;" id="unpaid-badge">12건</span></div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" onclick="sendAllReminders()">📨 전체 리마인더 발송</button>
+              <button class="btn btn-ghost btn-sm" onclick="autoMatch()">⚡ 자동 매칭 실행</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>주문번호</th>
+                  <th>구매자</th>
+                  <th>공구명</th>
+                  <th>금액</th>
+                  <th>주문일</th>
+                  <th>상태</th>
+                  <th>액션</th>
+                </tr>
+              </thead>
+              <tbody id="unpaid-table">
+                <tr>
+                  <td class="mono text2">GG-2025-0481</td>
+                  <td><strong>이수지</strong><br><span class="text3 mono" style="font-size:11px;">010-3322-****</span></td>
+                  <td>린넨 썸머 세트</td>
+                  <td class="mono" style="color:var(--amber);">89,000원</td>
+                  <td class="text3">5/10</td>
+                  <td><span class="stat-badge badge-amber">미입금</span></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="sendReminder('이수지')">리마인더</button></td>
+                </tr>
+                <tr>
+                  <td class="mono text2">GG-2025-0479</td>
+                  <td><strong>최민수</strong><br><span class="text3 mono" style="font-size:11px;">010-9988-****</span></td>
+                  <td>가죽 크로스백</td>
+                  <td class="mono" style="color:var(--amber);">145,000원</td>
+                  <td class="text3">5/10</td>
+                  <td><span class="stat-badge badge-red">D-1</span></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="sendReminder('최민수')">리마인더</button></td>
+                </tr>
+                <tr>
+                  <td class="mono text2">GG-2025-0476</td>
+                  <td><strong>박지영</strong><br><span class="text3 mono" style="font-size:11px;">010-4455-****</span></td>
+                  <td>린넨 썸머 세트</td>
+                  <td class="mono" style="color:var(--amber);">178,000원</td>
+                  <td class="text3">5/9</td>
+                  <td><span class="stat-badge badge-amber">미입금</span></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="sendReminder('박지영')">리마인더</button></td>
+                </tr>
+                <tr>
+                  <td class="mono text2">GG-2025-0461</td>
+                  <td><strong>김도현</strong><br><span class="text3 mono" style="font-size:11px;">010-7723-****</span></td>
+                  <td>히알루론산 앰플</td>
+                  <td class="mono" style="color:var(--amber);">54,000원</td>
+                  <td class="text3">5/8</td>
+                  <td><span class="stat-badge badge-red">D+2 초과</span></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="sendReminder('김도현')">리마인더</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORDERS PAGE -->
+    <div id="page-orders" style="display:none;">
+      <div class="topbar">
+        <div class="page-title">주문 관리</div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost btn-sm">엑셀 다운로드</button>
+          <button class="btn btn-ghost btn-sm">발주서 생성</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="tab-bar" style="margin-bottom:16px;">
+          <button class="tab active" onclick="filterOrders('all', this)">전체 (113)</button>
+          <button class="tab" onclick="filterOrders('paid', this)">입금완료 (100)</button>
+          <button class="tab" onclick="filterOrders('unpaid', this)">미입금 (12)</button>
+          <button class="tab" onclick="filterOrders('shipping', this)">배송중 (67)</button>
+          <button class="tab" onclick="filterOrders('done', this)">수령완료 (33)</button>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input class="form-input" style="width:220px;" placeholder="이름, 연락처, 주문번호 검색">
+              <select class="form-input" style="width:160px;">
+                <option>전체 공구</option>
+                <option>린넨 썸머 세트</option>
+                <option>가죽 크로스백</option>
+                <option>히알루론산 앰플</option>
+              </select>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="openDeliveryModal()">📨 선택 알림 발송</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th><input type="checkbox" style="accent-color:var(--accent);"></th>
+                  <th>주문번호</th>
+                  <th>구매자</th>
+                  <th>상품 / 옵션</th>
+                  <th>금액</th>
+                  <th>입금</th>
+                  <th>배송</th>
+                  <th>주문일</th>
+                  <th>액션</th>
+                </tr>
+              </thead>
+              <tbody id="order-table-body">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEPOSIT PAGE -->
+    <div id="page-deposit" style="display:none;">
+      <div class="topbar">
+        <div class="page-title">입금 확인</div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost btn-sm" onclick="autoMatch()">⚡ 자동 매칭 실행</button>
+          <button class="btn btn-primary" onclick="sendAllReminders()">📨 미입금 전체 리마인더</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+          <div class="stat-card green">
+            <div class="stat-label">입금 완료</div>
+            <div class="stat-value green">100</div>
+            <div class="stat-sub">자동매칭 <span class="stat-badge badge-green">94건</span></div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">미입금</div>
+            <div class="stat-value amber" id="deposit-unpaid">12</div>
+            <div class="stat-sub">오늘 마감 <span class="stat-badge badge-red">5건</span></div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">매칭 실패 (수동처리 필요)</div>
+            <div class="stat-value blue">3</div>
+            <div class="stat-sub">금액 불일치 또는 이름 불일치</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">✅ 최근 자동매칭 성공</div>
+            </div>
+            <div id="matched-list"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">⚠️ 수동 처리 필요</div>
+            </div>
+            <div>
+              <div class="match-row">
+                <div class="match-icon" style="background:var(--red-bg);">❌</div>
+                <div class="match-info">
+                  <div class="match-name">이수진 → <span class="text3">매칭 실패</span></div>
+                  <div class="match-detail">입금명: "이수진♥" / 주문자: 이수진 / 금액 불일치 (+500원)</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+                  <div class="match-amount" style="color:var(--red);">89,500원</div>
+                  <button class="btn btn-ghost btn-sm" onclick="manualMatch('이수진')">수동 매칭</button>
+                </div>
+              </div>
+              <div class="match-row">
+                <div class="match-icon" style="background:var(--red-bg);">❌</div>
+                <div class="match-info">
+                  <div class="match-name">박소현 → <span class="text3">주문자 미확인</span></div>
+                  <div class="match-detail">입금명: "박소현" / 동일 이름 주문 2건 존재</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+                  <div class="match-amount" style="color:var(--red);">145,000원</div>
+                  <button class="btn btn-ghost btn-sm" onclick="manualMatch('박소현')">수동 매칭</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELIVERY PAGE -->
+    <div id="page-delivery" style="display:none;">
+      <div class="topbar">
+        <div class="page-title">배송 관리</div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost btn-sm">운송장 엑셀 업로드</button>
+          <button class="btn btn-primary" onclick="openDeliveryModal()">📨 배송 알림 일괄 발송</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+          <div class="stat-card gray">
+            <div class="stat-label">발송 대기</div>
+            <div class="stat-value" style="color:var(--text2);">8</div>
+            <div class="stat-sub">운송장 미입력</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">배송중</div>
+            <div class="stat-value blue">67</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">배달완료 미확인</div>
+            <div class="stat-value amber">14</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">수령완료</div>
+            <div class="stat-value green">33</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">배송 현황</div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th><input type="checkbox" style="accent-color:var(--accent);"></th>
+                  <th>주문번호</th>
+                  <th>수령인</th>
+                  <th>상품</th>
+                  <th>택배사</th>
+                  <th>운송장</th>
+                  <th>상태</th>
+                  <th>알림</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" style="accent-color:var(--accent);"></td>
+                  <td class="mono text2">GG-0481</td>
+                  <td>이수연</td>
+                  <td>린넨 세트 / S</td>
+                  <td>CJ대한통운</td>
+                  <td class="mono" style="font-size:12px;">619-4892-1234</td>
+                  <td><span class="stat-badge badge-blue">배송중</span></td>
+                  <td><span class="stat-badge badge-green">발송됨</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" style="accent-color:var(--accent);"></td>
+                  <td class="mono text2">GG-0479</td>
+                  <td>최민수</td>
+                  <td>크로스백 / 브라운</td>
+                  <td>롯데택배</td>
+                  <td class="mono" style="font-size:12px;">—</td>
+                  <td><span class="stat-badge badge-gray">대기</span></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="sendSingleDelivery('최민수')">발송</button></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" style="accent-color:var(--accent);"></td>
+                  <td class="mono text2">GG-0461</td>
+                  <td>김하늘</td>
+                  <td>앰플 / 2세트</td>
+                  <td>한진택배</td>
+                  <td class="mono" style="font-size:12px;">411-7723-5591</td>
+                  <td><span class="stat-badge badge-green">배달완료</span></td>
+                  <td><span class="stat-badge badge-green">발송됨</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRM PAGE -->
+    <div id="page-crm" style="display:none;">
+      <div class="topbar">
+        <div class="page-title">구매자 CRM</div>
+        <div class="topbar-actions">
+          <button class="btn btn-primary" onclick="sendCampaign()">📣 공구 사전 알림 보내기</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+          <div class="stat-card purple">
+            <div class="stat-label">총 구매자</div>
+            <div class="stat-value purple">284</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">VIP (3회↑)</div>
+            <div class="stat-value amber">47</div>
+            <div class="stat-sub">재구매율 <span class="stat-badge badge-amber">68%</span></div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">신규 (이번달)</div>
+            <div class="stat-value green">31</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">구매자 목록</div>
+            <select class="form-input" style="width:140px;font-size:12px;">
+              <option>전체 등급</option>
+              <option>VIP</option>
+              <option>일반</option>
+              <option>신규</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>구매자</th>
+                  <th>등급</th>
+                  <th>총 주문</th>
+                  <th>총 구매액</th>
+                  <th>마지막 주문</th>
+                  <th>액션</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>이수연</strong><br><span class="text3" style="font-size:11px;">010-3344-****</span></td>
+                  <td><span class="stat-badge badge-purple">VIP</span></td>
+                  <td>7회</td>
+                  <td class="mono">487,000원</td>
+                  <td class="text3">2025-05-10</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="sendPersonal('이수연')">개인 메시지</button></td>
+                </tr>
+                <tr>
+                  <td><strong>박민지</strong><br><span class="text3" style="font-size:11px;">010-9812-****</span></td>
+                  <td><span class="stat-badge badge-purple">VIP</span></td>
+                  <td>5회</td>
+                  <td class="mono">312,000원</td>
+                  <td class="text3">2025-05-08</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="sendPersonal('박민지')">개인 메시지</button></td>
+                </tr>
+                <tr>
+                  <td><strong>김도현</strong><br><span class="text3" style="font-size:11px;">010-7723-****</span></td>
+                  <td><span class="stat-badge badge-green">일반</span></td>
+                  <td>2회</td>
+                  <td class="mono">143,000원</td>
+                  <td class="text3">2025-04-21</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="sendPersonal('김도현')">개인 메시지</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI PAGE -->
+    <div id="page-ai" style="display:none;">
+      <div class="topbar">
+        <div class="page-title">✦ AI 홍보물 생성</div>
+      </div>
+      <div class="content">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">공구 정보 입력</div>
+            </div>
+            <div class="modal-body">
+              <div class="form-group">
+                <label class="form-label">상품명</label>
+                <input class="form-input" id="ai-product" placeholder="예: 린넨 썸머 2피스 세트">
+              </div>
+              <div class="form-group">
+                <label class="form-label">가격</label>
+                <div class="form-row">
+                  <input class="form-input" id="ai-orig-price" placeholder="정가 (예: 120,000원)">
+                  <input class="form-input" id="ai-sale-price" placeholder="공구가 (예: 89,000원)">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">특장점 / 셀링포인트</label>
+                <textarea class="form-input" id="ai-features" rows="3" placeholder="예: 국내 자체 제작, 린넨 100%, 4가지 컬러, 여름 필수템"></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">공구 마감일</label>
+                <input class="form-input" type="date" id="ai-deadline">
+              </div>
+              <div class="form-group">
+                <label class="form-label">톤앤매너</label>
+                <select class="form-input" id="ai-tone">
+                  <option>친근하고 활기찬</option>
+                  <option>세련되고 감성적</option>
+                  <option>정보 위주 깔끔한</option>
+                  <option>신나고 이벤트성</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%;" onclick="generateAI()">✦ AI 공지문 생성하기</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">생성 결과</div>
+              <button class="btn btn-ghost btn-sm" id="copy-btn" onclick="copyResult()" style="display:none;">복사</button>
+            </div>
+            <div id="ai-result" style="padding:20px;min-height:300px;color:var(--text2);font-size:13px;">
+              <div class="empty-state">왼쪽에 공구 정보를 입력하고<br>AI 생성 버튼을 눌러주세요</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTLEMENT PAGE -->
+    <div id="page-settlement" style="display:none;">
+      <div class="topbar">
+        <div class="page-title">정산·분석</div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost btn-sm">부가세 자료 출력</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="stats-grid">
+          <div class="stat-card green">
+            <div class="stat-label">총 매출</div>
+            <div class="stat-value green">847만</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">공급가 (원가)</div>
+            <div class="stat-value blue">612만</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-label">수수료 (플랫폼)</div>
+            <div class="stat-value purple">33만</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">순수익</div>
+            <div class="stat-value amber">202만</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">공구별 수익 내역</div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>공구명</th><th>주문수</th><th>매출</th><th>원가</th><th>수익</th><th>마진율</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>린넨 썸머 세트</td>
+                  <td>38</td>
+                  <td class="mono">3,382,000원</td>
+                  <td class="mono text2">2,470,000원</td>
+                  <td class="mono" style="color:var(--green);">912,000원</td>
+                  <td><span class="stat-badge badge-green">26.9%</span></td>
+                </tr>
+                <tr>
+                  <td>히알루론산 앰플</td>
+                  <td>54</td>
+                  <td class="mono">2,916,000원</td>
+                  <td class="mono text2">2,030,000원</td>
+                  <td class="mono" style="color:var(--green);">886,000원</td>
+                  <td><span class="stat-badge badge-green">30.4%</span></td>
+                </tr>
+                <tr>
+                  <td>가죽 크로스백</td>
+                  <td>21</td>
+                  <td class="mono">3,045,000원</td>
+                  <td class="mono text2">2,270,000원</td>
+                  <td class="mono" style="color:var(--green);">775,000원</td>
+                  <td><span class="stat-badge badge-green">25.5%</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OTHER PAGES -->
+    <div id="page-gongu" style="display:none;">
+      <div class="topbar"><div class="page-title">공구 관리</div><button class="btn btn-primary" onclick="openNewGongu()">+ 새 공구 만들기</button></div>
+      <div class="content"><div class="empty-state" style="padding:60px;">공구 목록이 여기에 표시됩니다</div></div>
+    </div>
+    <div id="page-settings" style="display:none;">
+      <div class="topbar"><div class="page-title">계정 설정</div></div>
+      <div class="content"><div class="empty-state" style="padding:60px;">카카오 알림톡, PG 연동, 택배사 API 설정</div></div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: New Gongu -->
+<div class="modal-overlay" id="modal-gongu">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📦 새 공구 만들기</div>
+      <button class="modal-close" onclick="closeModal('modal-gongu')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">공구명 *</label>
+        <input class="form-input" placeholder="예: 린넨 썸머 2피스 세트 공구">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">정가</label>
+          <input class="form-input" placeholder="120,000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">공구가 *</label>
+          <input class="form-input" placeholder="89,000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">공구 시작일</label>
+          <input class="form-input" type="datetime-local">
+        </div>
+        <div class="form-group">
+          <label class="form-label">공구 마감일 *</label>
+          <input class="form-input" type="datetime-local">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">최소 수량</label>
+          <input class="form-input" placeholder="10">
+        </div>
+        <div class="form-group">
+          <label class="form-label">최대 수량</label>
+          <input class="form-input" placeholder="100">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">옵션 (쉼표 구분)</label>
+        <input class="form-input" placeholder="예: 화이트/S, 화이트/M, 베이지/S, 베이지/M">
+      </div>
+      <div class="form-group">
+        <label class="form-label">입금 계좌</label>
+        <input class="form-input" placeholder="국민은행 123-456-789012 김민정">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-gongu')">취소</button>
+      <button class="btn btn-primary" onclick="createGongu()">공구 생성 + 주문링크 발급</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Delivery -->
+<div class="modal-overlay" id="modal-delivery">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📨 배송 알림 일괄 발송</div>
+      <button class="modal-close" onclick="closeModal('modal-delivery')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text2);">
+        발송 대기 <strong style="color:var(--text);">8건</strong>에 카카오 알림톡으로 운송장 정보를 자동 발송합니다.
+      </div>
+      <div class="form-group">
+        <label class="form-label">메시지 미리보기</label>
+        <div style="background:var(--bg3);border-radius:8px;padding:14px;font-size:13px;line-height:1.7;color:var(--text);">
+          [공구메이트] 안녕하세요 <strong>이수연</strong>님,<br>
+          <strong>린넨 썸머 세트</strong> 공구 상품이 발송되었습니다! 🎉<br><br>
+          📦 택배사: CJ대한통운<br>
+          🔢 운송장: 619-4892-1234<br>
+          <a style="color:var(--accent2);">배송 조회하기 →</a>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">발송 채널</label>
+        <select class="form-input">
+          <option>카카오 알림톡</option>
+          <option>SMS</option>
+          <option>인스타 DM</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-delivery')">취소</button>
+      <button class="btn btn-primary" onclick="confirmDelivery()">8건 일괄 발송</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: AI -->
+<div class="modal-overlay" id="modal-ai" style="display:none;"></div>
+
+<!-- Toast -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const orders = [
+  {id:'GG-2025-0481',name:'이수연',phone:'010-3344-****',product:'린넨 썸머 세트',option:'화이트/M',price:'89,000',paid:'완료',delivery:'배송중',date:'05/10'},
+  {id:'GG-2025-0479',name:'최민수',phone:'010-9988-****',product:'가죽 크로스백',option:'브라운',price:'145,000',paid:'미입금',delivery:'대기',date:'05/10'},
+  {id:'GG-2025-0476',name:'박지영',phone:'010-4455-****',product:'린넨 썸머 세트',option:'베이지/S',price:'178,000',paid:'미입금',delivery:'대기',date:'05/09'},
+  {id:'GG-2025-0461',name:'김도현',phone:'010-7723-****',product:'히알루론산 앰플',option:'2세트',price:'54,000',paid:'미입금',delivery:'대기',date:'05/08'},
+  {id:'GG-2025-0455',name:'박민지',phone:'010-9812-****',product:'린넨 썸머 세트',option:'화이트/S',price:'89,000',paid:'완료',delivery:'배달완료',date:'05/07'},
+  {id:'GG-2025-0450',name:'이수지',phone:'010-3322-****',product:'히알루론산 앰플',option:'1세트',price:'27,000',paid:'완료',delivery:'배송중',date:'05/07'},
+];
+
+const matchedDeposits = [
+  {name:'박민지', amount:'89,000', time:'2분 전', status:'자동매칭'},
+  {name:'이수연', amount:'145,000', time:'15분 전', status:'자동매칭'},
+  {name:'김하늘', amount:'54,000', time:'31분 전', status:'자동매칭'},
+  {name:'정소희', amount:'89,000', time:'1시간 전', status:'자동매칭'},
+];
+
+function showPage(page) {
+  document.querySelectorAll('[id^="page-"]').forEach(p => p.style.display='none');
+  document.getElementById('page-'+page).style.display='block';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const items = document.querySelectorAll('.nav-item');
+  items.forEach(item => { if(item.textContent.trim().toLowerCase().includes(page.substring(0,3))) item.classList.add('active'); });
+  if(page==='orders') renderOrders(orders);
+  if(page==='deposit') renderMatched();
+}
+
+function renderOrders(data) {
+  const tbody = document.getElementById('order-table-body');
+  tbody.innerHTML = data.map(o => `
+    <tr>
+      <td><input type="checkbox" style="accent-color:var(--accent);"></td>
+      <td class="mono text2">${o.id}</td>
+      <td><strong>${o.name}</strong><br><span class="text3 mono" style="font-size:11px;">${o.phone}</span></td>
+      <td>${o.product}<br><span class="text3">${o.option}</span></td>
+      <td class="mono">${o.price}원</td>
+      <td>${o.paid==='완료'?'<span class="stat-badge badge-green">완료</span>':'<span class="stat-badge badge-amber">미입금</span>'}</td>
+      <td>${o.delivery==='배송중'?'<span class="stat-badge badge-blue">배송중</span>':o.delivery==='배달완료'?'<span class="stat-badge badge-green">완료</span>':'<span class="stat-badge badge-gray">대기</span>'}</td>
+      <td class="text3">${o.date}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="sendReminder('${o.name}')">알림</button></td>
+    </tr>`).join('');
+}
+
+function renderMatched() {
+  const list = document.getElementById('matched-list');
+  list.innerHTML = matchedDeposits.map(d=>`
+    <div class="match-row">
+      <div class="match-icon" style="background:var(--green-bg);">✅</div>
+      <div class="match-info">
+        <div class="match-name">${d.name} 님</div>
+        <div class="match-detail">${d.time} · ${d.status}</div>
+      </div>
+      <div class="match-amount" style="color:var(--green);">${d.amount}원</div>
+    </div>`).join('');
+}
+
+function filterOrders(type, btn) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  let filtered = orders;
+  if(type==='paid') filtered = orders.filter(o=>o.paid==='완료');
+  if(type==='unpaid') filtered = orders.filter(o=>o.paid==='미입금');
+  if(type==='shipping') filtered = orders.filter(o=>o.delivery==='배송중');
+  if(type==='done') filtered = orders.filter(o=>o.delivery==='배달완료');
+  renderOrders(filtered);
+}
+
+function openNewGongu() { openModal('modal-gongu'); }
+function openDepositModal() { showPage('deposit'); }
+function openDeliveryModal() { openModal('modal-delivery'); }
+function openAIModal() { showPage('ai'); }
+
+function openModal(id) {
+  const m = document.getElementById(id);
+  if(m) { m.style.display='flex'; m.classList.add('open'); }
+}
+function closeModal(id) {
+  const m = document.getElementById(id);
+  if(m) { m.style.display='none'; m.classList.remove('open'); }
+}
+
+function createGongu() {
+  closeModal('modal-gongu');
+  toast('✅', '공구가 생성되었습니다! 주문 링크가 발급되었어요.', 'green');
+}
+
+function sendReminder(name) {
+  toast('📨', `${name} 님께 입금 리마인더를 발송했습니다.`, 'blue');
+}
+
+function sendAllReminders() {
+  toast('📨', '미입금 12건에 리마인더를 일괄 발송했습니다.', 'blue');
+}
+
+function autoMatch() {
+  toast('⚡', '자동 매칭 실행 중... 9건 매칭 완료, 3건 수동 처리 필요', 'green');
+  document.getElementById('unpaid-count').textContent = '3';
+  document.getElementById('unpaid-badge').textContent = '3건';
+  if(document.getElementById('deposit-unpaid')) document.getElementById('deposit-unpaid').textContent = '3';
+}
+
+function confirmDelivery() {
+  closeModal('modal-delivery');
+  toast('📨', '8건에 카카오 알림톡 발송 완료!', 'green');
+}
+
+function manualMatch(name) {
+  toast('✅', `${name} 님 주문을 수동으로 매칭했습니다.`, 'green');
+}
+
+function sendSingleDelivery(name) {
+  toast('📨', `${name} 님께 배송 알림을 발송했습니다.`, 'blue');
+}
+
+function sendPersonal(name) {
+  toast('💬', `${name} 님께 개인 메시지를 발송했습니다.`, 'blue');
+}
+
+function sendCampaign() {
+  toast('📣', '공구 사전알림을 284명에게 발송했습니다!', 'green');
+}
+
+function showGonguDetail(id) {
+  toast('📦', '공구 상세 페이지로 이동합니다.', 'blue');
+}
+
+function showNotifications() {
+  toast('🔔', '새 알림: 주문 3건, 입금 2건, CS 1건', 'amber');
+  document.getElementById('notif-count').style.display='none';
+}
+
+function generateAI() {
+  const product = document.getElementById('ai-product').value || '린넨 썸머 세트';
+  const origPrice = document.getElementById('ai-orig-price').value || '120,000원';
+  const salePrice = document.getElementById('ai-sale-price').value || '89,000원';
+  const features = document.getElementById('ai-features').value || '국내 자체 제작, 린넨 100%, 4가지 컬러';
+  const tone = document.getElementById('ai-tone').value;
+  const result = document.getElementById('ai-result');
+  result.innerHTML = '<div style="color:var(--accent2);padding:20px;">✦ AI가 공지문을 생성하는 중...</div>';
+  const texts = {
+    '친근하고 활기찬': `🌿 드디어 오픈!! ${product} 공구 시작해요! 🙌\n\n안녕하세요 여러분~ 오늘은 정말 기다리고 기다리던 공구를 열어요! 💕\n\n✨ ${product}\n💰 정가 ${origPrice} → 공구가 ${salePrice}\n📌 ${features}\n\n⏰ 마감 전에 꼭 신청하세요! 늦으면 진짜 후회해요ㅠㅠ\n👇 주문서 링크 프로필에!`,
+    '세련되고 감성적': `— ${product} —\n\n이 계절이 오면 꼭 갖고 싶었던 그 아이템.\n드디어 공구로 만나볼 수 있게 되었어요.\n\n정가 ${origPrice} / 공구가 ${salePrice}\n${features}\n\n한정 수량으로 진행되는 만큼, 원하시는 분들은 서두르세요.`,
+  };
+  setTimeout(()=>{
+    const text = texts[tone] || texts['친근하고 활기찬'];
+    result.innerHTML = `<div style="white-space:pre-wrap;font-size:13px;line-height:1.9;color:var(--text);padding:4px 0;">${text}</div>`;
+    document.getElementById('copy-btn').style.display='block';
+    toast('✦', 'AI 공지문 생성 완료!', 'purple');
+  }, 1800);
+}
+
+function copyResult() {
+  const text = document.getElementById('ai-result').innerText;
+  navigator.clipboard.writeText(text).then(()=>toast('📋', '클립보드에 복사되었습니다!', 'green'));
+}
+
+function toast(icon, text, type) {
+  const colors = {green:'var(--green)',blue:'var(--blue)',amber:'var(--amber)',red:'var(--red)',purple:'var(--accent2)'};
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-text" style="color:${colors[type]||'var(--text)'};">${text}</span><button class="toast-close" onclick="this.parentElement.remove()">×</button>`;
+  c.appendChild(t);
+  setTimeout(()=>{ if(t.parentElement) t.remove(); }, 4000);
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click', e=>{ if(e.target===m) m.style.display='none'; });
+});
+
+renderMatched();
+</script>
+</body>
+</html>

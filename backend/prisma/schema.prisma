@@ -1,0 +1,201 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+  engineType    = "binary"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           BigInt     @id @default(autoincrement())
+  email        String     @unique @db.VarChar(255)
+  passwordHash String?    @map("password_hash") @db.VarChar(255)
+  name         String     @db.VarChar(100)
+  role         String     @default("seller") @db.VarChar(50)
+  googleId     String?    @unique @map("google_id") @db.VarChar(255)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  products  Product[]
+  orders    Order[]
+  faqs      Faq[]
+  settings  UserSetting?
+  projects  Project[]
+
+  @@map("users")
+}
+
+model UserSetting {
+  id           BigInt  @id @default(autoincrement())
+  userId       BigInt  @unique @map("user_id")
+  bankName     String? @map("bank_name") @db.VarChar(100)
+  bankAccount  String? @map("bank_account") @db.VarChar(100)
+  bankHolder   String? @map("bank_holder") @db.VarChar(100)
+  shippingDays Int?    @default(3) @map("shipping_days")
+  exchangeDays Int?    @default(7) @map("exchange_days")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model Project {
+  id           BigInt    @id @default(autoincrement())
+  userId       BigInt    @map("user_id")
+  name         String    @db.VarChar(255)
+  description  String?   @db.Text
+  status       String    @default("active") @db.VarChar(50)
+  slug         String?   @unique @db.VarChar(100)
+  startDate    DateTime? @map("start_date")
+  endDate      DateTime? @map("end_date")
+  bankName     String?   @map("bank_name") @db.VarChar(100)
+  bankAccount  String?   @map("bank_account") @db.VarChar(100)
+  bankHolder   String?   @map("bank_holder") @db.VarChar(100)
+  shippingDays Int?      @map("shipping_days")
+  exchangeDays Int?      @map("exchange_days")
+  paymentMethod String   @default("personal") @map("payment_method") @db.VarChar(20)
+  impKey        String?  @map("imp_key") @db.VarChar(100)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders   Order[]
+  products Product[]
+  faqs     Faq[]
+
+  @@index([userId])
+  @@map("projects")
+}
+
+model Product {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  projectId BigInt?  @map("project_id")
+  name      String   @db.VarChar(255)
+  price     Int
+  stock     Int      @default(0)
+  status    String   @default("active") @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  options ProductOption[]
+  items   OrderItem[]
+
+  @@index([userId])
+  @@index([projectId])
+  @@map("products")
+}
+
+model ProductOption {
+  id         BigInt @id @default(autoincrement())
+  productId  BigInt @map("product_id")
+  optionName String @map("option_name") @db.VarChar(255)
+  stock      Int    @default(0)
+
+  product Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  items   OrderItem[]
+
+  @@index([productId])
+  @@map("product_options")
+}
+
+model Order {
+  id           BigInt   @id @default(autoincrement())
+  orderNumber  String   @unique @map("order_number") @db.VarChar(100)
+  userId       BigInt   @map("user_id")
+  projectId    BigInt?  @map("project_id")
+  customerName String   @map("customer_name") @db.VarChar(100)
+  phone        String   @db.VarChar(50)
+  address      String   @db.Text
+  totalPrice   Int      @map("total_price")
+  depositName  String?  @map("deposit_name") @db.VarChar(100)
+  status       String   @default("pending") @db.VarChar(50)
+  memo         String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project  Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  items    OrderItem[]
+  payment  Payment?
+  shipment Shipment?
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        BigInt  @id @default(autoincrement())
+  orderId   BigInt  @map("order_id")
+  productId BigInt  @map("product_id")
+  optionId  BigInt? @map("option_id")
+  quantity  Int
+  price     Int
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id])
+  option  ProductOption? @relation(fields: [optionId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model Payment {
+  id            BigInt    @id @default(autoincrement())
+  orderId       BigInt    @unique @map("order_id")
+  depositorName String?   @map("depositor_name") @db.VarChar(100)
+  amount        Int
+  status        String    @default("pending") @db.VarChar(50)
+  paidAt        DateTime? @map("paid_at")
+  impUid        String?   @map("imp_uid") @db.VarChar(100)
+  vbankNum      String?   @map("vbank_num") @db.VarChar(50)
+  vbankName     String?   @map("vbank_name") @db.VarChar(50)
+  vbankHolder   String?   @map("vbank_holder") @db.VarChar(100)
+  vbankExpiry   DateTime? @map("vbank_expiry")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("payments")
+}
+
+model Shipment {
+  id             BigInt    @id @default(autoincrement())
+  orderId        BigInt    @unique @map("order_id")
+  courier        String?   @db.VarChar(100)
+  trackingNumber String?   @map("tracking_number") @db.VarChar(100)
+  status         String    @default("pending") @db.VarChar(50)
+  shippedAt      DateTime? @map("shipped_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("shipments")
+}
+
+model Faq {
+  id        BigInt  @id @default(autoincrement())
+  userId    BigInt  @map("user_id")
+  projectId BigInt? @map("project_id")
+  question  String  @db.Text
+  answer    String  @db.Text
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([projectId])
+  @@map("faqs")
+}
