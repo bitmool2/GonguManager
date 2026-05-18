@@ -11,7 +11,8 @@ interface UserRow {
   projectCount: number; orderCount: number;
   subscription: {
     planType: string; status: string; startDate: string; endDate: string | null;
-    passTotal: number | null; passUsed: number; passExpiry: string | null; ordersUsed: number;
+    passTotal: number | null; passUsed: number; passExpiry: string | null;
+    ordersUsed: number; impUid: string | null;
   } | null;
 }
 
@@ -90,7 +91,7 @@ export default function AdminUsersPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {['ID', '이메일 / 이름', '플랜', '구독 시작', '만료일', '다음 결제일', '주문/프로젝트', '역할'].map((h) => (
+                {['ID', '이메일 / 이름', '플랜', '플랜결제 상태', '구독 시작', '만료일', '다음 결제일', '역할'].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
                 ))}
               </tr>
@@ -109,6 +110,29 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3">
                       {sub ? <PlanBadge planType={sub.planType} /> : <span className="text-gray-300">—</span>}
                     </td>
+                    <td className="px-4 py-3">
+                      {sub ? (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
+                          sub.planType === 'free'
+                            ? 'bg-gray-50 text-gray-500 border-gray-200'
+                            : sub.status === 'active' && sub.impUid
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : sub.status === 'active'
+                            ? 'bg-blue-50 text-blue-600 border-blue-200'
+                            : 'bg-red-50 text-red-600 border-red-200'
+                        }`}>
+                          {sub.planType === 'free'
+                            ? '무료'
+                            : sub.status === 'active' && sub.impUid
+                            ? '결제완료'
+                            : sub.status === 'active'
+                            ? '관리자적용'
+                            : sub.status === 'expired'
+                            ? '만료'
+                            : sub.status}
+                        </span>
+                      ) : <span className="text-gray-300 text-xs">—</span>}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-600">
                       {sub ? new Date(sub.startDate).toLocaleDateString('ko-KR') : '—'}
                     </td>
@@ -121,9 +145,6 @@ export default function AdminUsersPage() {
                           {nextBilling.toLocaleDateString('ko-KR')}
                         </span>
                       ) : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-600 text-center">
-                      {u.orderCount} / {u.projectCount}
                     </td>
                     <td className="px-4 py-3">
                       <button onClick={() => handleRoleToggle(u)}

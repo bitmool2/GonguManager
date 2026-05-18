@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Users, ShoppingCart, FolderKanban, BadgeDollarSign,
-  UserPlus, TrendingUp, RefreshCw,
+  UserPlus, TrendingUp, RefreshCw, ChevronRight,
 } from 'lucide-react';
 
 interface Stats {
@@ -23,18 +24,14 @@ const PLAN_LABELS: Record<string, string> = {
   free: '프리', basic: '베이직', pro: '프로', biz: '비즈',
   pass_1: '1회권', pass_3: '3회권', pass_10: '10회권',
 };
-const STATUS_LABELS: Record<string, string> = {
-  pending: '대기', paid: '결제완료', shipped: '배송중',
-  delivered: '배송완료', cancelled: '취소',
-};
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-700',
-  paid: 'bg-green-100 text-green-700',
-  shipped: 'bg-blue-100 text-blue-700',
-  delivered: 'bg-gray-100 text-gray-700',
-  cancelled: 'bg-red-100 text-red-700',
-};
 const PLAN_COLORS = ['bg-gray-200', 'bg-blue-300', 'bg-purple-300', 'bg-amber-300', 'bg-green-300', 'bg-green-400', 'bg-green-500'];
+
+const KPI = [
+  { label: '전체 사용자', key: 'totalUsers' as const, icon: Users, color: 'text-blue-500', href: '/admin/users' },
+  { label: '전체 프로젝트', key: 'totalProjects' as const, icon: FolderKanban, color: 'text-purple-500', href: '/admin/projects' },
+  { label: '전체 주문', key: 'totalOrders' as const, icon: ShoppingCart, color: 'text-green-500', href: '/admin/orders' },
+  { label: '누적 매출', key: 'totalRevenue' as const, icon: BadgeDollarSign, color: 'text-amber-500', href: '/admin/payments' },
+];
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -59,6 +56,17 @@ export default function AdminDashboard() {
 
   const maxMonthly = Math.max(...stats.monthlyOrders.map((m) => m.count), 1);
 
+  const formatValue = (key: keyof Stats, val: number) =>
+    key === 'totalRevenue'
+      ? `${(val / 10000).toFixed(1)}만원`
+      : val.toLocaleString();
+
+  const subLabel = (key: keyof Stats) => {
+    if (key === 'totalUsers') return `최근 7일 +${stats.recentUsers}명`;
+    if (key === 'totalRevenue') return '결제 완료 기준';
+    return '';
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -66,30 +74,35 @@ export default function AdminDashboard() {
         <p className="text-sm text-gray-500">서비스 전체 현황</p>
       </div>
 
-      {/* KPI 카드 */}
+      {/* KPI 카드 — 클릭 시 상세 페이지 이동 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: '전체 사용자', value: stats.totalUsers.toLocaleString(), icon: Users, color: 'text-blue-500', sub: `최근 7일 +${stats.recentUsers}명` },
-          { label: '전체 프로젝트', value: stats.totalProjects.toLocaleString(), icon: FolderKanban, color: 'text-purple-500', sub: '전체 공구 수' },
-          { label: '전체 주문', value: stats.totalOrders.toLocaleString(), icon: ShoppingCart, color: 'text-green-500', sub: '누적 주문 건수' },
-          { label: '누적 매출', value: `${(stats.totalRevenue / 10000).toFixed(1)}만원`, icon: BadgeDollarSign, color: 'text-amber-500', sub: '결제 완료 기준' },
-        ].map(({ label, value, icon: Icon, color, sub }) => (
-          <Card key={label}>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">{label}</p>
-                  <p className="text-2xl font-bold mt-0.5">{value}</p>
-                  <p className="text-xs text-gray-400 mt-1">{sub}</p>
+        {KPI.map(({ label, key, icon: Icon, color, href }) => (
+          <Link key={key} href={href}>
+            <Card className="hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      {label}
+                      <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </p>
+                    <p className="text-2xl font-bold mt-0.5">
+                      {formatValue(key, stats[key] as number)}
+                    </p>
+                    {subLabel(key) && (
+                      <p className="text-xs text-gray-400 mt-1">{subLabel(key)}</p>
+                    )}
+                  </div>
+                  <Icon className={`w-8 h-8 ${color} opacity-80`} />
                 </div>
-                <Icon className={`w-8 h-8 ${color} opacity-80`} />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* 플랜 분포 + 월별 주문 추이 (2열) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 플랜 분포 */}
         <Card>
           <CardHeader className="pb-2">
@@ -108,7 +121,10 @@ export default function AdminDashboard() {
                     <span className="text-gray-500">{p.count}명 ({pct}%)</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${PLAN_COLORS[i % PLAN_COLORS.length]}`} style={{ width: `${pct}%` }} />
+                    <div
+                      className={`h-full rounded-full ${PLAN_COLORS[i % PLAN_COLORS.length]}`}
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
                 </div>
               );
@@ -116,28 +132,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* 주문 상태 */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <ShoppingCart className="w-4 h-4 text-green-500" />주문 상태 현황
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {stats.orderStatusCounts.map((s) => (
-                <div key={s.status} className="flex items-center justify-between">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                    {STATUS_LABELS[s.status] ?? s.status}
-                  </span>
-                  <span className="text-sm font-bold">{s.count.toLocaleString()}건</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 최근 신규 가입 수 */}
+        {/* 월별 주문 추이 */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-1.5">
@@ -152,7 +147,11 @@ export default function AdminDashboard() {
                 {stats.monthlyOrders.map((m) => {
                   const h = Math.round((m.count / maxMonthly) * 100);
                   return (
-                    <div key={m.month} className="flex-1 flex flex-col items-center gap-0.5" title={`${m.month}: ${m.count}건`}>
+                    <div
+                      key={m.month}
+                      className="flex-1 flex flex-col items-center gap-0.5"
+                      title={`${m.month}: ${m.count}건`}
+                    >
                       <span className="text-[9px] text-gray-400">{m.count}</span>
                       <div className="w-full bg-blue-400 rounded-sm" style={{ height: `${Math.max(h, 4)}%` }} />
                       <span className="text-[8px] text-gray-400">{m.month.slice(5)}</span>

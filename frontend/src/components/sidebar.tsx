@@ -14,10 +14,12 @@ import {
   Plus,
   X,
   UserCircle,
+  Shield,
 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { useState } from 'react';
+import { getRoleFromToken } from '@/lib/api';
+import { useState, useEffect } from 'react';
 
 const navigation = [
   { name: '프로젝트', href: '/projects', icon: FolderKanban },
@@ -39,6 +41,11 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const { projects, selectedProject, setSelectedProject } = useProject();
   const { planType } = useSubscription();
   const [open, setOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(getRoleFromToken() === 'admin');
+  }, []);
 
   const planLabels: Record<string, string> = {
     free: '프리',
@@ -157,6 +164,25 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             </Link>
           );
         })}
+
+        {/* 관리자 전용 링크 */}
+        {isAdmin && (
+          <div className="pt-2 mt-2 border-t border-gray-100">
+            <Link
+              href="/admin"
+              onClick={onClose}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                pathname.startsWith('/admin')
+                  ? 'bg-red-50 text-red-600'
+                  : 'text-red-500 hover:bg-red-50 hover:text-red-600',
+              )}
+            >
+              <Shield className="w-5 h-5 flex-shrink-0" />
+              관리자 페이지
+            </Link>
+          </div>
+        )}
       </nav>
     </>
   );

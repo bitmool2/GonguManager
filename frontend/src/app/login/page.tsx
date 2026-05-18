@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { apiFetch, setToken } from '@/lib/api';
+import { apiFetch, setToken, getRoleFromToken } from '@/lib/api';
 import { Package } from 'lucide-react';
 
 export default function LoginPage() {
@@ -28,7 +28,8 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       setToken(res.token);
-      router.push('/projects');
+      const role = getRoleFromToken();
+      router.push(role === 'admin' ? '/admin' : '/projects');
     } catch (err: any) {
       setError(err.message || '로그인에 실패했습니다.');
     } finally {
