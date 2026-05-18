@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getEmailPrefix } from '@/lib/api';
 import { useProject } from '@/contexts/ProjectContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { ArrowLeft, Save, ChevronRight, Building2, Truck, Package, CreditCard } 
 export default function NewProjectPage() {
   const router = useRouter();
   const { refreshProjects } = useProject();
+  const emailPrefix = getEmailPrefix();
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -136,14 +137,16 @@ export default function NewProjectPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>주문폼 Slug (URL)</Label>
+              <Label>주문폼 URL</Label>
               <Input
                 value={form.slug}
                 onChange={(e) => set('slug', e.target.value)}
                 placeholder="may-soap-gongu"
               />
               {form.slug && (
-                <p className="text-xs text-muted-foreground">/order/{form.slug}</p>
+                <p className="text-xs text-muted-foreground">
+                  /order/{emailPrefix ? `${emailPrefix}_${form.slug}` : form.slug}
+                </p>
               )}
             </div>
           </div>

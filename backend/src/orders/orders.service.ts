@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private subscriptionsService: SubscriptionsService,
+  ) {}
 
   async findAll(
     userId: bigint,
@@ -62,10 +66,16 @@ export class OrdersService {
   }
 
   async createPublicOrder(slug: string, dto: CreateOrderDto) {
-    const project = await this.prisma.project.findUnique({
-      where: { slug },
-    });
+    // 직접 매칭 후, 안 되면 prefix 제거 후 재시도
+    let project = await this.prisma.project.findUnique({ where: { slug } });
+    if (!project && slug.includes('_')) {
+      const slugWithoutPrefix = slug.substring(slug.indexOf('_') + 1);
+      project = await this.prisma.project.findUnique({ where: { slug: slugWithoutPrefix } });
+    }
     if (!project) throw new NotFoundException('주문폼을 찾을 수 없습니다.');
+
+    // 주문 한도 검증
+    await this.subscriptionsService.checkOrderLimit(project.userId);
 
     const orderNumber = await this.generateOrderNumber();
 
@@ -100,7 +110,9 @@ export class OrdersService {
         projectId: project.id,
         customerName: dto.customerName,
         phone: dto.phone,
-        address: dto.address,
+        zipNo:      dto.zipNo,
+        addrBase:   dto.addrBase,
+        addrDetail: dto.addrDetail,
         totalPrice,
         depositName: dto.depositName,
         items: { create: itemsData },

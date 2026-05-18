@@ -6,6 +6,7 @@ import { isLoggedIn } from '@/lib/api';
 import { Sidebar, MobileSidebar } from '@/components/sidebar';
 import { Topbar } from '@/components/topbar';
 import { ProjectProvider } from '@/contexts/ProjectContext';
+import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 
 export default function DashboardLayout({
   children,
@@ -23,6 +24,7 @@ export default function DashboardLayout({
 
   return (
     <ProjectProvider>
+      <SubscriptionProvider>
       <div className="min-h-screen bg-gray-50/50">
         {/* 데스크탑 고정 사이드바 */}
         <Sidebar />
@@ -35,6 +37,7 @@ export default function DashboardLayout({
           <main className="p-6">{children}</main>
         </div>
       </div>
+      </SubscriptionProvider>
     </ProjectProvider>
   );
 }

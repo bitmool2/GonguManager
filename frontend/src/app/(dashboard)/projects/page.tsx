@@ -4,7 +4,7 @@ import { useProject, Project } from '@/contexts/ProjectContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getEmailPrefix } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2, ShoppingCart, Package, ExternalLink, Pencil } from 'lucide-react';
 
@@ -17,6 +17,7 @@ const statusMap: Record<string, { label: string; variant: 'success' | 'warning' 
 export default function ProjectsPage() {
   const { projects, selectedProject, setSelectedProject, refreshProjects } = useProject();
   const router = useRouter();
+  const emailPrefix = getEmailPrefix();
 
   const handleDelete = async (project: Project) => {
     if (!confirm(`"${project.name}" 프로젝트를 삭제하시겠습니까?\n관련 주문 데이터는 유지됩니다.`)) return;
@@ -92,17 +93,23 @@ export default function ProjectsPage() {
                     </div>
                   </div>
 
-                  {project.slug && (
-                    <a
-                      href={`/order/${project.slug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      /order/{project.slug}
-                    </a>
-                  )}
+                  {project.slug && (() => {
+                    const fullSlug =
+                      emailPrefix && !project.slug!.startsWith(`${emailPrefix}_`)
+                        ? `${emailPrefix}_${project.slug}`
+                        : project.slug;
+                    return (
+                      <a
+                        href={`/order/${fullSlug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        /order/{fullSlug}
+                      </a>
+                    );
+                  })()}
 
                   {(project.startDate || project.endDate) && (
                     <p className="text-xs text-muted-foreground">

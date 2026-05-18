@@ -38,9 +38,13 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         </Button>
 
         <div className="flex items-center gap-2 ml-2 pl-2 border-l">
-          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+          <button
+            onClick={() => router.push('/mypage')}
+            className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors"
+            title="마이페이지"
+          >
             <User className="w-4 h-4 text-primary" />
-          </div>
+          </button>
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-1" />
             로그아웃

@@ -6,12 +6,14 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private subscriptionsService: SubscriptionsService,
   ) {}
 
   async register(email: string, password: string, name: string) {
@@ -26,6 +28,9 @@ export class AuthService {
       passwordHash,
       name,
     });
+
+    // 신규 가입 시 free 구독 자동 생성
+    await this.subscriptionsService.createFree(user.id);
 
     const token = this.generateToken(user);
     return { user: { id: Number(user.id), email: user.email, name: user.name }, token };
@@ -42,6 +47,9 @@ export class AuthService {
       throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
 
+    // 구독 없으면 free 생성 (기존 회원 대응)
+    await this.subscriptionsService.createFree(user.id);
+
     const token = this.generateToken(user);
     return { user: { id: Number(user.id), email: user.email, name: user.name }, token };
   }
@@ -56,6 +64,8 @@ export class AuthService {
         user = await this.usersService.create({ email, name, googleId });
       }
     }
+
+    await this.subscriptionsService.createFree(user.id);
 
     const token = this.generateToken(user);
     return { user: { id: Number(user.id), email: user.email, name: user.name }, token };

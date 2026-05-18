@@ -35,7 +35,9 @@ interface Shipment {
     id: number;
     orderNumber: string;
     customerName: string;
-    address: string;
+    zipNo?: string;
+    addrBase?: string;
+    addrDetail?: string;
     status: string;
   };
 }

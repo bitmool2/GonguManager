@@ -13,8 +13,10 @@ import {
   ChevronDown,
   Plus,
   X,
+  UserCircle,
 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useState } from 'react';
 
 const navigation = [
@@ -23,6 +25,7 @@ const navigation = [
   { name: '주문관리', href: '/orders', icon: ShoppingCart },
   { name: '입금관리', href: '/payments', icon: CreditCard },
   { name: '배송관리', href: '/shipments', icon: Truck },
+  { name: '마이페이지', href: '/mypage', icon: UserCircle },
 ];
 
 const statusColors: Record<string, string> = {
@@ -34,15 +37,38 @@ const statusColors: Record<string, string> = {
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const { projects, selectedProject, setSelectedProject } = useProject();
+  const { planType } = useSubscription();
   const [open, setOpen] = useState(false);
+
+  const planLabels: Record<string, string> = {
+    free: '프리',
+    basic: '베이직',
+    pro: '프로',
+    biz: '비즈',
+    pass_1: '1회권',
+    pass_3: '3회권',
+    pass_10: '10회권',
+  };
+  const planColors: Record<string, string> = {
+    free: 'bg-gray-100 text-gray-600',
+    basic: 'bg-blue-100 text-blue-700',
+    pro: 'bg-purple-100 text-purple-700',
+    biz: 'bg-amber-100 text-amber-700',
+    pass_1: 'bg-green-100 text-green-700',
+    pass_3: 'bg-green-100 text-green-700',
+    pass_10: 'bg-green-100 text-green-700',
+  };
 
   return (
     <>
       <div className="flex items-center justify-between h-16 px-6 border-b flex-shrink-0">
-        <div className="flex items-center gap-2">
+        <Link href="/projects" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <Package className="w-7 h-7 text-primary" />
           <span className="text-lg font-bold text-primary">공구매니저</span>
-        </div>
+          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${planColors[planType] ?? planColors.free}`}>
+            {planLabels[planType] ?? planType}
+          </span>
+        </Link>
         {onClose && (
           <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-gray-100">
             <X className="w-5 h-5 text-gray-500" />

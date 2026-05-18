@@ -54,7 +54,7 @@ export class ProjectsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '프로젝트 생성' })
   async create(@Body() body: any, @CurrentUser() user: any) {
-    return this.projectsService.create(BigInt(user.id), body);
+    return this.projectsService.create(BigInt(user.id), body, user.email);
   }
 
   @Put(':id')

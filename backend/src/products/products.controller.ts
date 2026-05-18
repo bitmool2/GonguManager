@@ -136,9 +136,15 @@ export class ProductsController {
     @CurrentUser() user: any,
   ) {
     if (!file && !description) throw new BadRequestException('파일 또는 설명 중 하나는 필요합니다.');
+
+    // Multer가 Latin-1로 수신한 원래 파일명을 UTF-8로 재해석
+    const fileName = file
+      ? Buffer.from(file.originalname, 'latin1').toString('utf8')
+      : undefined;
+
     return this.productsService.upsertDetail(BigInt(id), BigInt(user.id), {
       description,
-      fileName:    file?.originalname,
+      fileName,
       fileContent: file ? file.buffer.toString('utf-8') : undefined,
     });
   }

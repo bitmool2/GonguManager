@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getEmailPrefix } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,6 +104,7 @@ function ProjectDetailPage() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') || 'info';
   const { refreshProjects } = useProject();
+  const emailPrefix = getEmailPrefix();
 
   /* 프로젝트 기본 정보 */
   const [project, setProject] = useState<Project | null>(null);
@@ -149,11 +150,38 @@ function ProjectDetailPage() {
   const [settingsMsg, setSettingsMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   /* 상품 AI 상세정보 */
-  const [detailProductId, setDetailProductId] = useState<number | null>(null);
-  const [detailText,      setDetailText]      = useState('');
-  const [detailFileName,  setDetailFileName]  = useState<string | null>(null);
-  const [detailSaving,    setDetailSaving]    = useState(false);
+  const [detailProductId,   setDetailProductId]   = useState<number | null>(null);
+  const [detailText,        setDetailText]         = useState('');
+  const [detailFileName,    setDetailFileName]     = useState<string | null>(null);
+  const [detailSaving,      setDetailSaving]       = useState(false);
+  const [detailDeleting,    setDetailDeleting]     = useState(false);
   const detailFileRef = useRef<HTMLInputElement>(null);
+
+  const openDetailDialog = (product: Product) => {
+    setDetailProductId(product.id);
+    setDetailText((product as any).detail?.description ?? '');
+    setDetailFileName((product as any).detail?.fileName ?? null);
+    if (detailFileRef.current) detailFileRef.current.value = '';
+  };
+
+  const handleDetailDelete = async (productId: number) => {
+    if (!confirm('등록된 AI 상세정보를 삭제하시겠습니까?')) return;
+    setDetailDeleting(true);
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3021';
+      const token = localStorage.getItem('token');
+      await fetch(`${API_BASE}/products/${productId}/detail-file`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await loadProducts();
+      setDetailProductId(null);
+    } catch (err: any) {
+      alert(`삭제 오류: ${err.message}`);
+    } finally {
+      setDetailDeleting(false);
+    }
+  };
 
   /* AI 상담 테스트 */
   const [aiMessages,  setAiMessages]  = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
@@ -413,17 +441,24 @@ function ProjectDetailPage() {
             <h1 className="text-2xl font-bold truncate">{project.name}</h1>
             <Badge variant={s.variant}>{s.label}</Badge>
           </div>
-          {project.slug && (
-            <a
-              href={`/order/${project.slug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-primary hover:underline flex items-center gap-1"
-            >
-              <ExternalLink className="w-3 h-3" />
-              /order/{project.slug}
-            </a>
-          )}
+          {project.slug && (() => {
+            // slug가 이미 emailPrefix_xxx 형태인지 확인 후 아니면 prefix 붙임
+            const fullSlug =
+              emailPrefix && !project.slug.startsWith(`${emailPrefix}_`)
+                ? `${emailPrefix}_${project.slug}`
+                : project.slug;
+            return (
+              <a
+                href={`/order/${fullSlug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-primary hover:underline flex items-center gap-1"
+              >
+                <ExternalLink className="w-3 h-3" />
+                /order/{fullSlug}
+              </a>
+            );
+          })()}
         </div>
       </div>
 
@@ -464,14 +499,16 @@ function ProjectDetailPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>주문폼 Slug (URL)</Label>
+                  <Label>주문폼 URL</Label>
                   <Input
                     value={form.slug}
                     onChange={(e) => setForm({ ...form, slug: e.target.value })}
                     placeholder="my-gongu-2026"
                   />
                   {form.slug && (
-                    <p className="text-xs text-muted-foreground">/order/{form.slug}</p>
+                    <p className="text-xs text-muted-foreground">
+                      /order/{emailPrefix ? `${emailPrefix}_${form.slug}` : form.slug}
+                    </p>
                   )}
                 </div>
               </div>
@@ -690,7 +727,7 @@ function ProjectDetailPage() {
                           )}
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
-                          <Button size="icon" variant="ghost" title="AI 상세정보" onClick={() => { setDetailProductId(product.id); setDetailText(product.detail?.description ?? ''); setDetailFileName(product.detail?.fileName ?? null); }}><Bot className="w-4 h-4 text-purple-500" /></Button>
+                          <Button size="icon" variant="ghost" title="AI 상세정보" onClick={() => openDetailDialog(product)}><Bot className="w-4 h-4 text-purple-500" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => setEditingProduct(product)}><Pencil className="w-4 h-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => handleDeleteProduct(product.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                         </div>
@@ -974,22 +1011,26 @@ function ProjectDetailPage() {
                 <div key={product.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium">{product.name}</p>
-                    {(product as any).detail?.fileName && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        첨부파일: {(product as any).detail.fileName}
-                      </p>
-                    )}
-                    {(product as any).detail?.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">
-                        설명: {(product as any).detail.description}
-                      </p>
+                    {(product as any).detail ? (
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {(product as any).detail.fileName && (
+                          <span className="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                            <Upload className="h-2.5 w-2.5" />
+                            {(product as any).detail.fileName}
+                          </span>
+                        )}
+                        {(product as any).detail.description && (
+                          <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                            <Check className="h-2.5 w-2.5" />
+                            설명 등록됨
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-0.5">AI 정보 미등록</p>
                     )}
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => {
-                    setDetailProductId(product.id);
-                    setDetailText((product as any).detail?.description ?? '');
-                    setDetailFileName((product as any).detail?.fileName ?? null);
-                  }}>
+                  <Button size="sm" variant="outline" onClick={() => openDetailDialog(product)}>
                     {(product as any).detail ? '수정' : '등록'}
                   </Button>
                 </div>
@@ -1072,64 +1113,115 @@ function ProjectDetailPage() {
       </Tabs>
 
       {/* 상품 AI 상세정보 다이얼로그 */}
-      {detailProductId !== null && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setDetailProductId(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-lg">상품 AI 상세정보 등록</h3>
-              <button onClick={() => setDetailProductId(null)}><X className="h-5 w-5" /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <Label>상세 설명 (직접 입력)</Label>
-                <textarea
-                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  rows={5}
-                  placeholder="소재, 세탁 방법, 주의사항, 사이즈 정보 등 AI가 참고할 상세 내용을 입력하세요."
-                  value={detailText}
-                  onChange={(e) => setDetailText(e.target.value)}
-                />
+      {detailProductId !== null && (() => {
+        const targetProduct = products.find((p) => p.id === detailProductId);
+        const existingDetail = (targetProduct as any)?.detail;
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setDetailProductId(null)}>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-lg">상품 AI 상세정보 등록</h3>
+                <button onClick={() => setDetailProductId(null)}><X className="h-5 w-5" /></button>
               </div>
-              <div>
-                <Label>파일 업로드 (txt, 최대 1MB)</Label>
-                <div className="mt-1 flex items-center gap-2">
-                  <input ref={detailFileRef} type="file" accept=".txt" className="hidden" onChange={(e) => setDetailFileName(e.target.files?.[0]?.name ?? null)} />
-                  <Button variant="outline" size="sm" onClick={() => detailFileRef.current?.click()}>
-                    <Upload className="h-3.5 w-3.5 mr-1" />파일 선택
-                  </Button>
-                  {detailFileName && <span className="text-sm text-muted-foreground">{detailFileName}</span>}
+
+              {/* ── 현재 등록된 정보 ── */}
+              {existingDetail && (
+                <div className="border rounded-lg p-3 bg-purple-50 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-purple-700">현재 등록된 AI 정보</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-red-500 hover:text-red-700 hover:bg-red-50 px-2"
+                      disabled={detailDeleting}
+                      onClick={() => handleDetailDelete(detailProductId)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      {detailDeleting ? '삭제 중...' : '삭제'}
+                    </Button>
+                  </div>
+                  {existingDetail.fileName && (
+                    <div className="flex items-center gap-1.5 text-sm text-purple-800">
+                      <Upload className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="font-medium">파일:</span>
+                      <span className="truncate">{existingDetail.fileName}</span>
+                    </div>
+                  )}
+                  {existingDetail.description && (
+                    <div className="text-sm text-purple-800">
+                      <span className="font-medium">설명:</span>
+                      <p className="mt-0.5 text-xs text-purple-700 line-clamp-3 whitespace-pre-wrap">{existingDetail.description}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── 새 정보 입력 ── */}
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">{existingDetail ? '아래 내용을 수정 후 저장하면 기존 정보가 덮어씌워집니다.' : 'AI가 상담에 활용할 상품 정보를 입력하세요.'}</p>
+                <div>
+                  <Label>상세 설명 (직접 입력)</Label>
+                  <textarea
+                    className="mt-1 w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    rows={5}
+                    placeholder="소재, 세탁 방법, 주의사항, 사이즈 정보 등 AI가 참고할 상세 내용을 입력하세요."
+                    value={detailText}
+                    onChange={(e) => setDetailText(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>파일 업로드 (txt, 최대 1MB)</Label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      ref={detailFileRef}
+                      type="file"
+                      accept=".txt"
+                      className="hidden"
+                      onChange={(e) => setDetailFileName(e.target.files?.[0]?.name ?? null)}
+                    />
+                    <Button variant="outline" size="sm" onClick={() => detailFileRef.current?.click()}>
+                      <Upload className="h-3.5 w-3.5 mr-1" />파일 선택
+                    </Button>
+                    {detailFileName && (
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Check className="h-3.5 w-3.5 text-green-500" />
+                        {detailFileName}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setDetailProductId(null)}>취소</Button>
-              <Button disabled={detailSaving} onClick={async () => {
-                setDetailSaving(true);
-                try {
-                  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3021';
-                  const token = localStorage.getItem('token');
-                  const fd = new FormData();
-                  if (detailText) fd.append('description', detailText);
-                  if (detailFileRef.current?.files?.[0]) fd.append('file', detailFileRef.current.files[0]);
-                  await fetch(`${API_BASE}/products/${detailProductId}/detail-file`, {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${token}` },
-                    body: fd,
-                  });
-                  await loadProducts();
-                  setDetailProductId(null);
-                } catch (err: any) {
-                  alert(`저장 오류: ${err.message}`);
-                } finally {
-                  setDetailSaving(false);
-                }
-              }}>
-                {detailSaving ? '저장 중...' : '저장'}
-              </Button>
+
+              <div className="flex gap-2 justify-end pt-1">
+                <Button variant="outline" onClick={() => setDetailProductId(null)}>취소</Button>
+                <Button disabled={detailSaving} onClick={async () => {
+                  setDetailSaving(true);
+                  try {
+                    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3021';
+                    const token = localStorage.getItem('token');
+                    const fd = new FormData();
+                    if (detailText) fd.append('description', detailText);
+                    if (detailFileRef.current?.files?.[0]) fd.append('file', detailFileRef.current.files[0]);
+                    await fetch(`${API_BASE}/products/${detailProductId}/detail-file`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}` },
+                      body: fd,
+                    });
+                    await loadProducts();
+                    setDetailProductId(null);
+                  } catch (err: any) {
+                    alert(`저장 오류: ${err.message}`);
+                  } finally {
+                    setDetailSaving(false);
+                  }
+                }}>
+                  {detailSaving ? '저장 중...' : '저장'}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

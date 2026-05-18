@@ -16,12 +16,19 @@ import { FaqsService } from './faqs.service';
 
 @ApiTags('FAQs')
 @Controller('faqs')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class FaqsController {
   constructor(private faqsService: FaqsService) {}
 
+  /** 공개 FAQ 조회 (주문서용, 인증 불필요) */
+  @Get('public/:slug')
+  @ApiOperation({ summary: '공개 FAQ 조회 (slug)' })
+  async findPublic(@Param('slug') slug: string) {
+    return this.faqsService.findBySlug(slug);
+  }
+
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'FAQ 목록 조회 (projectId로 필터)' })
   async findAll(
     @CurrentUser() user: any,
@@ -34,6 +41,8 @@ export class FaqsController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'FAQ 생성' })
   async create(
     @Body() body: { question: string; answer: string; projectId?: number },
@@ -48,6 +57,8 @@ export class FaqsController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'FAQ 수정' })
   async update(
     @Param('id') id: string,
@@ -58,6 +69,8 @@ export class FaqsController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'FAQ 삭제' })
   async remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.faqsService.delete(BigInt(id), BigInt(user.id));

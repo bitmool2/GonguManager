@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, Query, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
@@ -8,7 +9,18 @@ import { GoogleLoginDto } from './dto/google-login.dto';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private usersService: UsersService,
+  ) {}
+
+  /** 이메일 중복 확인 (공개) */
+  @Get('check-email')
+  @ApiOperation({ summary: '이메일 중복 확인' })
+  async checkEmail(@Query('email') email: string) {
+    const user = await this.usersService.findByEmail(email);
+    return { available: !user };
+  }
 
   @Post('register')
   @ApiOperation({ summary: '회원가입' })

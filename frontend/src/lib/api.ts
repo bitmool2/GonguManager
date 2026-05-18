@@ -67,3 +67,22 @@ export function removeToken() {
 export function isLoggedIn(): boolean {
   return !!getToken();
 }
+
+/** JWT payload에서 email 추출 (서버 호출 없이 클라이언트 decode) */
+export function getUserEmailFromToken(): string | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** 이메일에서 @ 앞부분만 추출 후 특수문자 제거 */
+export function getEmailPrefix(): string {
+  const email = getUserEmailFromToken();
+  if (!email) return '';
+  return email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '');
+}

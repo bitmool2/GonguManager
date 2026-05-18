@@ -19,6 +19,20 @@ export class FaqsService {
     return faqs.map(ser);
   }
 
+  async findBySlug(slug: string) {
+    let project = await this.prisma.project.findUnique({ where: { slug } });
+    if (!project && slug.includes('_')) {
+      const bare = slug.substring(slug.indexOf('_') + 1);
+      project = await this.prisma.project.findUnique({ where: { slug: bare } });
+    }
+    if (!project) return [];
+    const faqs = await this.prisma.faq.findMany({
+      where: { projectId: project.id },
+      orderBy: { id: 'asc' },
+    });
+    return faqs.map(ser);
+  }
+
   async create(userId: bigint, question: string, answer: string, projectId?: bigint) {
     const faq = await this.prisma.faq.create({
       data: { userId, question, answer, ...(projectId ? { projectId } : {}) },

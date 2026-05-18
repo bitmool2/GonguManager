@@ -25,8 +25,30 @@ model User {
   settings      UserSetting?
   projects      Project[]
   uploadRecords UploadRecord[]
+  subscription  Subscription?
 
   @@map("users")
+}
+
+model Subscription {
+  id             BigInt    @id @default(autoincrement())
+  userId         BigInt    @unique @map("user_id")
+  planType       String    @default("free") @map("plan_type") @db.VarChar(50)
+  status         String    @default("active") @map("status") @db.VarChar(20)
+  startDate      DateTime  @default(now()) @map("start_date")
+  endDate        DateTime? @map("end_date")
+  passTotal      Int?      @map("pass_total")
+  passUsed       Int       @default(0) @map("pass_used")
+  passExpiry     DateTime? @map("pass_expiry")
+  ordersUsed     Int       @default(0) @map("orders_used")
+  ordersResetAt  DateTime  @default(now()) @map("orders_reset_at")
+  impUid         String?   @map("imp_uid") @db.VarChar(100)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
 }
 
 model UserSetting {
@@ -127,7 +149,9 @@ model Order {
   projectId    BigInt?  @map("project_id")
   customerName String   @map("customer_name") @db.VarChar(100)
   phone        String   @db.VarChar(50)
-  address      String   @db.Text
+  zipNo        String?  @map("zip_no") @db.VarChar(10)
+  addrBase     String?  @map("addr_base") @db.VarChar(300)
+  addrDetail   String?  @map("addr_detail") @db.VarChar(200)
   totalPrice   Int      @map("total_price")
   depositName  String?  @map("deposit_name") @db.VarChar(100)
   status       String   @default("pending") @db.VarChar(50)

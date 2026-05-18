@@ -11,7 +11,7 @@ export class ProductsService {
   async findAll(userId: bigint, projectId?: bigint) {
     const products = await this.prisma.product.findMany({
       where: { userId, ...(projectId ? { projectId } : {}) },
-      include: { options: true },
+      include: { options: true, detail: true },
       orderBy: { createdAt: 'desc' },
     });
     return serialize(products);

@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ChatWidget from '@/components/ChatWidget';
-import { Package, CheckCircle, Banknote, Truck, Plus, Trash2, ShoppingCart, Clock } from 'lucide-react';
+import { Package, CheckCircle, Banknote, Truck, Plus, Trash2, ShoppingCart, Clock, ChevronDown, HelpCircle } from 'lucide-react';
 
 interface ProductOption {
   id: number;
@@ -31,7 +31,7 @@ interface Product {
 }
 
 interface CartItem {
-  key: string;          // 고유 키 (productId-optionId-timestamp)
+  key: string;
   product: Product;
   option: ProductOption | null;
   quantity: number;
@@ -50,7 +50,20 @@ interface ProjectInfo {
   products: Product[];
 }
 
+interface Faq {
+  id: number;
+  question: string;
+  answer: string;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3021';
+
+/* 카카오(다음) 주소 검색 Window 타입 선언 */
+declare global {
+  interface Window {
+    daum: any;
+  }
+}
 
 export default function PublicOrderPage() {
   const params = useParams();
@@ -62,12 +75,45 @@ export default function PublicOrderPage() {
   const [orderNumber, setOrderNumber] = useState('');
   const [error, setError] = useState('');
 
+  /* FAQ */
+  const [faqs, setFaqs] = useState<Faq[]>([]);
+
+  /* 아코디언 열림 상태 */
+  const [shippingOpen, setShippingOpen] = useState(false);
+  const [faqOpenIdx,   setFaqOpenIdx]   = useState<number | null>(null);
+
   /* 고객 정보 */
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const [zipNo,       setZipNo]       = useState('');  // 우편번호
+  const [addrBase,    setAddrBase]    = useState('');  // 도로명주소 (카카오 자동입력)
+  const [addrDetail,  setAddrDetail]  = useState('');  // 상세주소 (직접 입력)
   const [depositName, setDepositName] = useState('');
 
+  /* 카카오 주소 라이브러리 로드 */
+  useEffect(() => {
+    if (document.getElementById('kakao-postcode-script')) return;
+    const script = document.createElement('script');
+    script.id  = 'kakao-postcode-script';
+    script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
+
+  const openAddressSearch = () => {
+    if (!window.daum?.Postcode) {
+      alert('주소 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    new window.daum.Postcode({
+      oncomplete: (data: { address: string; zonecode: string }) => {
+        setZipNo(data.zonecode);
+        setAddrBase(data.address);
+        setAddrDetail('');
+        setTimeout(() => document.getElementById('addrDetail')?.focus(), 100);
+      },
+    }).open();
+  };
   /* 장바구니 */
   const [cart, setCart] = useState<CartItem[]>([]);
 
@@ -114,6 +160,11 @@ export default function PublicOrderPage() {
       .then(setProjectInfo)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+
+    fetch(`${API_BASE}/faqs/public/${slug}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then(setFaqs)
+      .catch(() => {});
   }, [slug]);
 
   const products = projectInfo?.products ?? [];
@@ -122,7 +173,16 @@ export default function PublicOrderPage() {
   const fmt = (n: number) => new Intl.NumberFormat('ko-KR').format(n) + '원';
   const totalPrice = cart.reduce((s, item) => s + item.product.price * item.quantity, 0);
 
-  /* ── 장바구니 추가 ── */
+  /* 연락처 자동 포맷 (000-0000-0000 / 000-000-0000) */
+  const formatPhone = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 3)  return digits;
+    if (digits.length <= 6)  return `${digits.slice(0,3)}-${digits.slice(3)}`;
+    if (digits.length <= 10) return `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`;
+    return `${digits.slice(0,3)}-${digits.slice(3,7)}-${digits.slice(7)}`;
+  };
+
+  const isValidPhone = (v: string) => /^\d{3}-\d{3,4}-\d{4}$/.test(v);
   const handleAddToCart = () => {
     setAddError('');
     if (!pickProduct) { setAddError('상품을 선택하세요.'); return; }
@@ -150,6 +210,10 @@ export default function PublicOrderPage() {
     if (cart.length === 0) { setError('상품을 한 개 이상 추가하세요.'); return; }
     if (!customerName.trim()) { setError('이름을 입력해주세요.'); return; }
     if (!phone.trim()) { setError('연락처를 입력해주세요.'); return; }
+    if (!isValidPhone(phone)) { setError('연락처를 올바른 형식으로 입력해주세요. (예: 010-1234-5678)'); return; }
+    if (!addrBase.trim()) { setError('주소를 입력해주세요.'); return; }
+
+    const fullAddress = [zipNo, addrBase, addrDetail].filter(Boolean).join(' ');
 
     const impKey = projectInfo?.impKey;
     const pm = projectInfo?.paymentMethod ?? 'personal';
@@ -163,8 +227,10 @@ export default function PublicOrderPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName,
-          phone,
-          address,
+          phone: phone.replace(/-/g, ''),
+          zipNo,
+          addrBase,
+          addrDetail,
           depositName,
           items: cart.map((item) => ({
             productId: item.product.id,
@@ -380,11 +446,51 @@ export default function PublicOrderPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>연락처 *</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                <Input
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  placeholder="010-0000-0000"
+                  inputMode="numeric"
+                  maxLength={13}
+                  required
+                />
+                {phone && !isValidPhone(phone) && (
+                  <p className="text-xs text-red-500">000-0000-0000 또는 000-000-0000 형식으로 입력하세요.</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>주소 *</Label>
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} required />
+                {/* 우편번호 + 검색 버튼 */}
+                <div className="flex gap-2">
+                  <Input
+                    value={zipNo}
+                    readOnly
+                    placeholder="우편번호"
+                    className="w-32 bg-muted cursor-default"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-shrink-0"
+                    onClick={openAddressSearch}
+                  >
+                    주소 검색
+                  </Button>
+                </div>
+                {/* 도로명주소 (자동 입력) */}
+                <Input
+                  value={addrBase}
+                  readOnly
+                  placeholder="도로명 주소 (주소 검색 버튼을 눌러주세요)"
+                  className="bg-muted cursor-default"
+                />
+                {/* 상세주소 */}
+                <Input
+                  id="addrDetail"
+                  value={addrDetail}
+                  onChange={(e) => setAddrDetail(e.target.value)}
+                  placeholder="상세주소를 입력하세요 (동/호수 등)"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>입금자명 *</Label>
@@ -546,17 +652,30 @@ export default function PublicOrderPage() {
             </Card>
           )}
 
-          {/* 배송 정책 */}
-          {(settings?.shippingDays || settings?.exchangeDays) && (
-            <Card className="border-green-200 bg-green-50/50">
-              <CardHeader className="pb-3 pt-4">
-                <CardTitle className="text-base flex items-center gap-2 text-green-800">
-                  <Truck className="w-4 h-4" />배송 안내
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5 pb-4">
+          <Button type="submit" className="w-full" size="lg" disabled={cart.length === 0 || submitting}>
+            {submitting ? '처리 중...' : '주문하기'}
+          </Button>
+        </form>
+
+        {/* 배송 정책 — 아코디언 */}
+        {(settings?.shippingDays || settings?.exchangeDays) && (
+          <div className="border border-green-200 rounded-xl overflow-hidden bg-green-50/50">
+            <button
+              type="button"
+              className="w-full flex items-center justify-between px-4 py-3.5 text-left"
+              onClick={() => setShippingOpen((v) => !v)}
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-green-800">
+                <Truck className="w-4 h-4" />배송 안내
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 text-green-600 transition-transform duration-200 ${shippingOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {shippingOpen && (
+              <div className="px-4 pb-4 space-y-1.5 border-t border-green-200">
                 {settings?.shippingDays && (
-                  <div className="flex gap-2 text-sm">
+                  <div className="flex gap-2 text-sm mt-3">
                     <span className="text-muted-foreground w-24">배송 예정</span>
                     <span>입금 확인 후 <strong>{settings.shippingDays}영업일</strong> 이내 발송</span>
                   </div>
@@ -567,14 +686,46 @@ export default function PublicOrderPage() {
                     <span>수령 후 <strong>{settings.exchangeDays}일</strong> 이내</span>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            )}
+          </div>
+        )}
 
-          <Button type="submit" className="w-full" size="lg" disabled={cart.length === 0 || submitting}>
-            {submitting ? '처리 중...' : '주문하기'}
-          </Button>
-        </form>
+        {/* FAQ — 아코디언 (폼 밖, 주문하기 버튼 아래) */}
+        {faqs.length > 0 && (
+          <div className="border rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 bg-gray-100 border-b">
+              <HelpCircle className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-semibold text-gray-700">자주 묻는 질문 (FAQ)</span>
+              <span className="ml-auto text-xs text-muted-foreground">{faqs.length}개</span>
+            </div>
+            <div className="divide-y">
+              {faqs.map((faq, idx) => (
+                <div key={faq.id}>
+                  <button
+                    type="button"
+                    className="w-full flex items-start justify-between px-4 py-3.5 text-left hover:bg-muted/30 transition-colors"
+                    onClick={() => setFaqOpenIdx(faqOpenIdx === idx ? null : idx)}
+                  >
+                    <span className="text-sm font-medium text-gray-800 pr-4 leading-snug">
+                      <span className="text-primary font-bold mr-1.5">Q.</span>{faq.question}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 flex-shrink-0 mt-0.5 text-muted-foreground transition-transform duration-200 ${faqOpenIdx === idx ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {faqOpenIdx === idx && (
+                    <div className="px-4 pb-4 pt-1 bg-muted/20 border-t">
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        <span className="text-green-600 font-bold mr-1.5">A.</span>{faq.answer}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* AI 상담 플로팅 위젯 */}

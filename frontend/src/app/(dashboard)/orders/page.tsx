@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +48,9 @@ interface Order {
   orderNumber: string;
   customerName: string;
   phone: string;
-  address: string;
+  zipNo?: string;
+  addrBase?: string;
+  addrDetail?: string;
   depositName: string;
   memo: string;
   totalPrice: number;
@@ -110,6 +113,9 @@ function buildOptionSummary(orders: Order[]): OptionSummary[] {
 }
 
 export default function OrdersPage() {
+  const { can } = useSubscription();
+  const canExcel = can('excelDownload');
+
   const [data,          setData]          = useState<OrdersResponse | null>(null);
   const [status,        setStatus]        = useState('all');
   const [search,        setSearch]        = useState('');
@@ -170,7 +176,7 @@ export default function OrdersPage() {
 
       /* ── 시트 1: 전체 주문 (주문일시 오름차순) ── */
       const sheet1Rows: (string | number)[][] = [
-        ['주문번호', '주문일시', '고객명', '연락처', '주소', '입금자명', '상품명', '옵션', '수량', '단가', '상품금액', '총금액', '주문상태', '입금상태', '메모'],
+        ['주문번호', '주문일시', '고객명', '연락처', '우편번호', '도로명주소', '상세주소', '입금자명', '상품명', '옵션', '수량', '단가', '상품금액', '총금액', '주문상태', '입금상태', '메모'],
       ];
       for (const order of orders) {
         const items = order.items ?? [];
@@ -180,7 +186,9 @@ export default function OrdersPage() {
             new Date(order.createdAt).toLocaleString('ko-KR'),
             order.customerName,
             order.phone,
-            order.address,
+            order.zipNo || '',
+            order.addrBase || '',
+            order.addrDetail || '',
             order.depositName || '',
             '', '', '', '', '',
             order.totalPrice,
@@ -195,7 +203,9 @@ export default function OrdersPage() {
               idx === 0 ? new Date(order.createdAt).toLocaleString('ko-KR') : '',
               idx === 0 ? order.customerName : '',
               idx === 0 ? order.phone : '',
-              idx === 0 ? order.address : '',
+              idx === 0 ? (order.zipNo || '') : '',
+              idx === 0 ? (order.addrBase || '') : '',
+              idx === 0 ? (order.addrDetail || '') : '',
               idx === 0 ? (order.depositName || '') : '',
               item.product?.name ?? '',
               item.option?.optionName ?? '',
@@ -282,9 +292,10 @@ export default function OrdersPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleExcelDownload}
+                onClick={canExcel ? handleExcelDownload : () => alert('엑셀 다운로드는 베이직 이상 플랜에서 사용 가능합니다.\n마이페이지에서 플랜을 업그레이드해주세요.')}
                 disabled={downloading}
-                className="whitespace-nowrap"
+                className={`whitespace-nowrap ${!canExcel ? 'opacity-50' : ''}`}
+                title={canExcel ? undefined : '베이직 이상 플랜 필요'}
               >
                 <Download className="h-4 w-4 mr-1.5" />
                 {downloading ? '생성 중...' : '엑셀 다운로드'}
@@ -429,7 +440,9 @@ export default function OrdersPage() {
                 </div>
                 <div className="col-span-2">
                   <p className="text-muted-foreground">주소</p>
-                  <p className="font-medium">{selectedOrder.address}</p>
+                  <p className="font-medium">
+                    {[selectedOrder.zipNo, selectedOrder.addrBase, selectedOrder.addrDetail].filter(Boolean).join(' ') || '-'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">입금자명</p>

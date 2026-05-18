@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private subscriptionsService: SubscriptionsService,
+  ) {}
 
   async findAll(userId: bigint) {
     const [projects, canceledCounts] = await Promise.all([
@@ -51,7 +55,8 @@ export class ProjectsService {
   }
 
   async findBySlug(slug: string) {
-    const project = await this.prisma.project.findUnique({
+    // 직접 매칭 시도
+    let project = await this.prisma.project.findUnique({
       where: { slug },
       include: {
         products: {
@@ -60,6 +65,21 @@ export class ProjectsService {
         },
       },
     });
+
+    // emailPrefix_slug 형태로 요청됐을 때 prefix 제거 후 재시도
+    if (!project && slug.includes('_')) {
+      const slugWithoutPrefix = slug.substring(slug.indexOf('_') + 1);
+      project = await this.prisma.project.findUnique({
+        where: { slug: slugWithoutPrefix },
+        include: {
+          products: {
+            where: { status: 'active' },
+            include: { options: true },
+          },
+        },
+      });
+    }
+
     if (!project) throw new NotFoundException('주문폼을 찾을 수 없습니다.');
     return this.serialize(project);
   }
@@ -80,10 +100,21 @@ export class ProjectsService {
       paymentMethod?: string;
       impKey?: string;
     },
+    userEmail?: string,
   ) {
+    // 플랜 프로젝트 한도 검증
+    await this.subscriptionsService.checkProjectLimit(userId);
+
+    // slug 생성: emailPrefix_userInputSlug 형태로 조합
+    let finalSlug: string | null = null;
     if (data.slug) {
+      const emailPrefix = userEmail
+        ? userEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '')
+        : '';
+      finalSlug = emailPrefix ? `${emailPrefix}_${data.slug}` : data.slug;
+
       const existing = await this.prisma.project.findUnique({
-        where: { slug: data.slug },
+        where: { slug: finalSlug },
       });
       if (existing) throw new ConflictException('이미 사용 중인 슬러그입니다.');
     }
@@ -94,7 +125,7 @@ export class ProjectsService {
           userId,
           name: data.name,
           description: data.description,
-          slug: data.slug || null,
+          slug: finalSlug,
           startDate: data.startDate ? new Date(data.startDate) : null,
           endDate: data.endDate ? new Date(data.endDate) : null,
           bankName: data.bankName,

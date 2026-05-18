@@ -11,6 +11,7 @@ import { SettingsModule } from './settings/settings.module';
 import { ProjectsModule } from './projects/projects.module';
 import { PortoneModule } from './portone/portone.module';
 import { ChatModule } from './chat/chat.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ChatModule } from './chat/chat.module';
     ProjectsModule,
     PortoneModule,
     ChatModule,
+    SubscriptionsModule,
   ],
 })
 export class AppModule {}

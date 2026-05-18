@@ -26,9 +26,19 @@ export class CreateOrderDto {
   @IsString()
   phone: string;
 
+  @ApiProperty({ example: '12345' })
+  @IsOptional()
+  @IsString()
+  zipNo?: string;
+
   @ApiProperty({ example: '서울시 강남구 테헤란로 123' })
   @IsString()
-  address: string;
+  addrBase: string;
+
+  @ApiProperty({ example: '101동 202호' })
+  @IsOptional()
+  @IsString()
+  addrDetail?: string;
 
   @ApiProperty({ example: '김철수' })
   @IsOptional()

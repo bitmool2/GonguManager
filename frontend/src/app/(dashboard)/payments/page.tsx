@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { apiFetch, apiUpload } from '@/lib/api';
 import { useProject } from '@/contexts/ProjectContext';
 import { CheckCircle, Clock, AlertTriangle, Upload, Link2, Trash2 } from 'lucide-react';
@@ -72,6 +73,9 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('ko-KR').format(amount) + '원';
 
 export default function PaymentsPage() {
+  const { can } = useSubscription();
+  const canAutoMatch = can('autoPaymentMatch');
+
   const [payments,       setPayments]       = useState<Payment[]>([]);
   const [uploadRecords,  setUploadRecords]  = useState<UploadRecord[]>([]);
   const [summary,        setSummary]        = useState<Summary | null>(null);
@@ -192,7 +196,11 @@ export default function PaymentsPage() {
         </div>
         <div>
           <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleUpload} />
-          <Button onClick={() => fileInputRef.current?.click()}>
+          <Button
+            onClick={() => canAutoMatch ? fileInputRef.current?.click() : alert('입금 자동매칭은 베이직 이상 플랜에서 사용 가능합니다.\n마이페이지에서 플랜을 업그레이드해주세요.')}
+            variant={canAutoMatch ? 'default' : 'secondary'}
+            title={canAutoMatch ? undefined : '베이직 이상 플랜 필요'}
+          >
             <Upload className="w-4 h-4 mr-2" />
             입금내역 업로드
           </Button>
