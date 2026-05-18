@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getRoleFromToken, getUserEmailFromToken } from '@/lib/api';
@@ -10,38 +10,34 @@ import {
 } from 'lucide-react';
 
 const NAV = [
-  { href: '/admin', label: '대시보드', icon: LayoutDashboard },
-  { href: '/admin/users', label: '사용자 관리', icon: Users },
-  { href: '/admin/orders', label: '주문', icon: ShoppingCart },
-  { href: '/admin/projects', label: '프로젝트', icon: FolderKanban },
-  { href: '/admin/payments', label: '결제', icon: CreditCard },
-  { href: '/admin/shipments', label: '배송', icon: Truck },
+  { href: '/admin',          label: '대시보드',    icon: LayoutDashboard },
+  { href: '/admin/users',    label: '사용자 관리', icon: Users },
+  { href: '/admin/orders',   label: '주문',        icon: ShoppingCart },
+  { href: '/admin/projects', label: '프로젝트',    icon: FolderKanban },
+  { href: '/admin/payments', label: '결제',        icon: CreditCard },
+  { href: '/admin/shipments',label: '배송',        icon: Truck },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
+  const router   = useRouter();
   const pathname = usePathname();
-  const [email, setEmail] = useState('');
-  const [ready, setReady] = useState(false);
 
+  // localStorage 는 동기 API → 렌더 시점에 즉시 확인
+  const role  = typeof window !== 'undefined' ? getRoleFromToken() : null;
+  const email = typeof window !== 'undefined' ? (getUserEmailFromToken() ?? '') : '';
+
+  // 권한 없으면 렌더 직후 리다이렉트
   useEffect(() => {
-    const role = getRoleFromToken();
     if (role !== 'admin') {
       router.replace('/login');
-      // 리다이렉트 중이므로 ready를 올리지 않음 → null 렌더
-      return;
     }
-    setEmail(getUserEmailFromToken() ?? '');
-    setReady(true);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [role, router]);
 
-  const isActive = (href: string) => {
-    if (href === '/admin') return pathname === '/admin';
-    return pathname.startsWith(href);
-  };
+  // SSR 단계(window 없음) 또는 권한 미충족 시 아무것도 렌더하지 않음
+  if (role !== 'admin') return null;
 
-  // 권한 확인 전 또는 리다이렉트 중에는 아무것도 렌더하지 않음
-  if (!ready) return null;
+  const isActive = (href: string) =>
+    href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
 
   return (
     <div className="flex h-screen bg-gray-50">
