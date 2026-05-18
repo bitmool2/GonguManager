@@ -86,3 +86,15 @@ export function getEmailPrefix(): string {
   if (!email) return '';
   return email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '');
 }
+
+/** JWT payload에서 role 추출 */
+export function getRoleFromToken(): string | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.role ?? null;
+  } catch {
+    return null;
+  }
+}

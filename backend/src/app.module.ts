@@ -12,6 +12,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { PortoneModule } from './portone/portone.module';
 import { ChatModule } from './chat/chat.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     PortoneModule,
     ChatModule,
     SubscriptionsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

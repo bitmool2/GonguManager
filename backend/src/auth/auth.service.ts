@@ -71,10 +71,11 @@ export class AuthService {
     return { user: { id: Number(user.id), email: user.email, name: user.name }, token };
   }
 
-  private generateToken(user: { id: bigint; email: string }) {
+  private generateToken(user: { id: bigint; email: string; role?: string }) {
     return this.jwtService.sign({
       sub: Number(user.id),
       email: user.email,
+      role: user.role ?? 'seller',
     });
   }
 }
