@@ -22,6 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [email, setEmail] = useState('');
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     const role = getRoleFromToken();
@@ -30,10 +31,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
     setEmail(getUserEmailFromToken() ?? '');
+    setChecked(true);
   }, [router]);
 
-  const isActive = (href: string, exact?: boolean) =>
-    exact ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string, exact?: boolean) => {
+    if (exact) return pathname === href;
+    // /admin 은 정확히 일치할 때만 active (하위 경로와 충돌 방지)
+    if (href === '/admin') return pathname === '/admin';
+    return pathname.startsWith(href);
+  };
+
+  if (!checked) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
