@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getRoleFromToken, getUserEmailFromToken } from '@/lib/api';
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 const NAV = [
-  { href: '/admin', label: '대시보드', icon: LayoutDashboard, exact: true },
+  { href: '/admin', label: '대시보드', icon: LayoutDashboard },
   { href: '/admin/users', label: '사용자 관리', icon: Users },
   { href: '/admin/orders', label: '주문', icon: ShoppingCart },
   { href: '/admin/projects', label: '프로젝트', icon: FolderKanban },
@@ -22,32 +22,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [email, setEmail] = useState('');
-  const [checked, setChecked] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const role = getRoleFromToken();
     if (role !== 'admin') {
-      router.replace('/projects');
+      router.replace('/login');
+      // 리다이렉트 중이므로 ready를 올리지 않음 → null 렌더
       return;
     }
     setEmail(getUserEmailFromToken() ?? '');
-    setChecked(true);
-  }, [router]);
+    setReady(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isActive = (href: string, exact?: boolean) => {
-    if (exact) return pathname === href;
-    // /admin 은 정확히 일치할 때만 active (하위 경로와 충돌 방지)
+  const isActive = (href: string) => {
     if (href === '/admin') return pathname === '/admin';
     return pathname.startsWith(href);
   };
 
-  if (!checked) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  // 권한 확인 전 또는 리다이렉트 중에는 아무것도 렌더하지 않음
+  if (!ready) return null;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -62,23 +56,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <nav className="flex-1 py-3 space-y-0.5 px-2">
-          {NAV.map(({ href, label, icon: Icon, exact }) => (
-            <Link key={href} href={href}
+          {NAV.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                isActive(href, exact)
+                isActive(href)
                   ? 'bg-gray-900 text-white font-medium'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               {label}
-              {isActive(href, exact) && <ChevronRight className="w-3 h-3 ml-auto" />}
+              {isActive(href) && <ChevronRight className="w-3 h-3 ml-auto" />}
             </Link>
           ))}
         </nav>
 
         <div className="p-3 border-t border-gray-100 space-y-1">
-          <Link href="/projects"
+          <Link
+            href="/projects"
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-500 hover:bg-gray-100"
           >
             <LayoutDashboard className="w-3.5 h-3.5" />셀러 대시보드로
@@ -92,7 +89,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* 메인 */}
+      {/* 메인 콘텐츠 */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto p-6">{children}</div>
       </main>
