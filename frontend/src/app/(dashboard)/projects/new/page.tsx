@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, getEmailPrefix } from '@/lib/api';
 import { useProject } from '@/contexts/ProjectContext';
@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Save, ChevronRight, Building2, Truck, Package, CreditCard } from 'lucide-react';
+import { ArrowLeft, Save, ChevronRight, Building2, Truck, Package, CreditCard, CheckCircle2, XCircle, Loader2, AlertCircle, X } from 'lucide-react';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -24,23 +24,22 @@ export default function NewProjectPage() {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [popupError, setPopupError] = useState('');
+
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle');
 
   const [form, setForm] = useState({
-    /* 기본 정보 */
     name: '',
     description: '',
     status: 'active',
     slug: '',
     startDate: '',
     endDate: '',
-    /* 결제 방식 */
     paymentMethod: 'personal' as 'personal' | 'vbank' | 'both',
     impKey: '',
-    /* 계좌 정보 */
     bankName: '',
     bankAccount: '',
     bankHolder: '',
-    /* 배송 정책 */
     shippingDays: '' as number | '',
     exchangeDays: '' as number | '',
   });
@@ -48,13 +47,32 @@ export default function NewProjectPage() {
   const set = (key: keyof typeof form, value: string | number) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  const handleCreate = async () => {
-    if (!form.name.trim()) { setError('프로젝트 이름은 필수입니다.'); return; }
+  /* slug 중복 확인 (debounce 600ms) */
+  useEffect(() => {
+    if (!form.slug) { setSlugStatus('idle'); return; }
+    setSlugStatus('checking');
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiFetch<{ available: boolean }>(`/projects/check-slug?slug=${encodeURIComponent(form.slug)}`);
+        setSlugStatus(res.available ? 'ok' : 'taken');
+      } catch { setSlugStatus('idle'); }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [form.slug]);
 
-    /* 개인계좌 / 모두 사용 선택 시 계좌정보 필수 */
+  const handleCreate = async () => {
+    /* 필수값 검증 — 팝업으로 표시 */
+    if (!form.name.trim()) {
+      setPopupError('프로젝트 이름을 입력해주세요.');
+      return;
+    }
+    if (form.slug && slugStatus === 'taken') {
+      setPopupError('이미 사용 중인 주문폼 URL입니다. 다른 URL을 입력해주세요.');
+      return;
+    }
     if (form.paymentMethod === 'personal' || form.paymentMethod === 'both') {
       if (!form.bankName.trim() || !form.bankAccount.trim() || !form.bankHolder.trim()) {
-        setError('개인계좌 사용 시 은행명, 계좌번호, 예금주를 모두 입력해주세요.');
+        setPopupError('개인계좌 사용 시 은행명, 계좌번호, 예금주를 모두 입력해주세요.');
         return;
       }
     }
@@ -84,6 +102,22 @@ export default function NewProjectPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {/* 팝업 오류 메시지 */}
+      {popupError && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPopupError('')}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-gray-900">입력 오류</h3>
+                <p className="text-sm text-gray-600 mt-1">{popupError}</p>
+              </div>
+            </div>
+            <Button className="w-full" onClick={() => setPopupError('')}>확인</Button>
+          </div>
+        </div>
+      )}
+
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => router.push('/projects')}>
@@ -138,12 +172,28 @@ export default function NewProjectPage() {
             </div>
             <div className="space-y-2">
               <Label>주문폼 URL</Label>
-              <Input
-                value={form.slug}
-                onChange={(e) => set('slug', e.target.value)}
-                placeholder="may-soap-gongu"
-              />
-              {form.slug && (
+              <div className="relative">
+                <Input
+                  value={form.slug}
+                  onChange={(e) => set('slug', e.target.value)}
+                  placeholder="may-soap-gongu"
+                  className={`pr-8 ${slugStatus === 'taken' ? 'border-red-500' : slugStatus === 'ok' ? 'border-green-500' : ''}`}
+                />
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                  {slugStatus === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                  {slugStatus === 'ok'       && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                  {slugStatus === 'taken'    && <XCircle className="w-4 h-4 text-red-500" />}
+                </div>
+              </div>
+              {form.slug && slugStatus === 'ok' && (
+                <p className="text-xs text-green-600">
+                  사용 가능 · /order/{emailPrefix ? `${emailPrefix}_${form.slug}` : form.slug}
+                </p>
+              )}
+              {form.slug && slugStatus === 'taken' && (
+                <p className="text-xs text-red-500">이미 사용 중인 URL입니다.</p>
+              )}
+              {form.slug && slugStatus === 'idle' && (
                 <p className="text-xs text-muted-foreground">
                   /order/{emailPrefix ? `${emailPrefix}_${form.slug}` : form.slug}
                 </p>
@@ -290,7 +340,7 @@ export default function NewProjectPage() {
         <Button variant="outline" onClick={() => router.push('/projects')} className="w-32">
           취소
         </Button>
-        <Button onClick={handleCreate} disabled={saving || !form.name.trim()} className="flex-1">
+        <Button onClick={handleCreate} disabled={saving} className="flex-1">
           <Save className="w-4 h-4 mr-2" />
           {saving ? '저장 중...' : '상세설정 시작'}
         </Button>

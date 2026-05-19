@@ -30,16 +30,16 @@ function PlanRow({ label, value, highlight }: {
   const isBool = typeof value === 'boolean';
   const ok = value === true || (isNum && value !== 0) || value === 'view';
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-white/10 last:border-0">
-      <span className="text-xs text-gray-400">{label}</span>
+    <div className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+      <span className="text-xs text-muted-foreground">{label}</span>
       {isBool ? (
         ok
-          ? <Check className={`w-4 h-4 ${highlight ? 'text-primary' : 'text-green-400'}`} />
-          : <X className="w-4 h-4 text-gray-600" />
+          ? <Check className={`w-4 h-4 ${highlight ? 'text-primary' : 'text-green-500'}`} />
+          : <X className="w-4 h-4 text-gray-300" />
       ) : (
         <span className={`text-xs font-semibold ${
-          isNum && value === 0 ? 'text-gray-600' :
-          highlight ? 'text-primary' : 'text-white'
+          isNum && value === 0 ? 'text-gray-300' :
+          highlight ? 'text-primary' : 'text-foreground'
         }`}>
           {isNum
             ? value === -1 ? '무제한' : value === 0 ? '—' : `${value.toLocaleString()}건`
@@ -86,11 +86,12 @@ export default function RegisterPage() {
     return () => clearTimeout(t);
   }, [email]);
 
+  const pwValid = password.length >= 6 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
   const pwMatch = passwordConfirm === '' || password === passwordConfirm;
   const canSubmit =
     name.trim() !== '' &&
     emailStatus === 'ok' &&
-    password.length >= 6 &&
+    pwValid &&
     password === passwordConfirm;
 
   /* Step 1 제출 */
@@ -141,7 +142,7 @@ export default function RegisterPage() {
 
   /* ── 렌더 ── */
   return (
-    <div className="min-h-screen bg-[#0f1117] text-white flex flex-col items-center justify-start pt-10 pb-16 px-4">
+    <div className="min-h-screen bg-gray-50 text-foreground flex flex-col items-center justify-start pt-10 pb-16 px-4">
       <div className="w-full max-w-5xl space-y-6">
         {/* 헤더 */}
         <div className="flex items-center gap-2 justify-center">
@@ -157,9 +158,9 @@ export default function RegisterPage() {
             const done = ['info','plan','payment'].indexOf(step) > i;
             return (
               <div key={s} className="flex items-center gap-2">
-                {i > 0 && <div className="w-8 h-px bg-white/20" />}
+                {i > 0 && <div className="w-8 h-px bg-border" />}
                 <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  active ? 'bg-primary text-white' : done ? 'bg-green-600/30 text-green-400' : 'bg-white/10 text-white/40'
+                  active ? 'bg-primary text-white' : done ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-400'
                 }`}>
                   {done ? <Check className="w-3 h-3" /> : <span>{i+1}</span>}
                   {labels[i]}
@@ -170,91 +171,93 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div className="p-3 text-sm text-red-400 bg-red-900/30 border border-red-700 rounded-lg">{error}</div>
+          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">{error}</div>
         )}
 
         {/* ── STEP 1: 기본 정보 ── */}
         {step === 'info' && (
           <div className="max-w-md mx-auto">
-            <div className="bg-[#1a1d27] rounded-2xl p-8 space-y-5">
+            <div className="bg-white rounded-2xl p-8 space-y-5 border border-border shadow-sm">
               <div>
                 <h2 className="text-xl font-bold">기본 정보 입력</h2>
-                <p className="text-sm text-white/50 mt-1">계정을 만들고 플랜을 선택하세요</p>
+                <p className="text-sm text-muted-foreground mt-1">계정을 만들고 플랜을 선택하세요</p>
               </div>
               <form onSubmit={handleInfoSubmit} className="space-y-4">
                 {/* 이름 */}
                 <div className="space-y-1.5">
-                  <Label className="text-white/70">이름</Label>
+                  <Label>이름</Label>
                   <Input
                     placeholder="홍길동" value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
                     required
                   />
                 </div>
 
                 {/* 이메일 + 중복확인 */}
                 <div className="space-y-1.5">
-                  <Label className="text-white/70">이메일</Label>
+                  <Label>이메일</Label>
                   <div className="relative">
                     <Input
                       type="email" placeholder="seller@example.com" value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className={`bg-white/5 border-white/10 text-white placeholder:text-white/30 pr-8 ${
+                      className={`pr-8 ${
                         emailStatus === 'taken' ? 'border-red-500' :
                         emailStatus === 'ok' ? 'border-green-500' : ''
                       }`}
                       required
                     />
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                      {emailStatus === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-white/40" />}
-                      {emailStatus === 'ok'       && <CheckCircle2 className="w-4 h-4 text-green-400" />}
-                      {emailStatus === 'taken'    && <XCircle className="w-4 h-4 text-red-400" />}
+                      {emailStatus === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {emailStatus === 'ok'       && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                      {emailStatus === 'taken'    && <XCircle className="w-4 h-4 text-red-500" />}
                     </div>
                   </div>
                   {emailStatus === 'taken' && (
-                    <p className="text-xs text-red-400">이미 사용 중인 이메일입니다.</p>
+                    <p className="text-xs text-red-500">이미 사용 중인 이메일입니다.</p>
                   )}
                   {emailStatus === 'ok' && (
-                    <p className="text-xs text-green-400">사용 가능한 이메일입니다.</p>
+                    <p className="text-xs text-green-600">사용 가능한 이메일입니다.</p>
                   )}
                 </div>
 
                 {/* 비밀번호 */}
                 <div className="space-y-1.5">
-                  <Label className="text-white/70">비밀번호</Label>
+                  <Label>비밀번호</Label>
                   <Input
-                    type="password" placeholder="6자 이상" value={password}
+                    type="password" placeholder="영문+숫자 조합 6자 이상" value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    className={password && !pwValid ? 'border-red-500' : password && pwValid ? 'border-green-500' : ''}
                     required minLength={6}
                   />
+                  {password && !pwValid && (
+                    <p className="text-xs text-red-500">영문과 숫자를 모두 포함하여 6자 이상 입력해주세요.</p>
+                  )}
                 </div>
 
                 {/* 비밀번호 확인 */}
                 <div className="space-y-1.5">
-                  <Label className="text-white/70">비밀번호 확인</Label>
+                  <Label>비밀번호 확인</Label>
                   <div className="relative">
                     <Input
                       type="password" placeholder="비밀번호를 다시 입력하세요" value={passwordConfirm}
                       onChange={(e) => setPasswordConfirm(e.target.value)}
-                      className={`bg-white/5 border-white/10 text-white placeholder:text-white/30 pr-8 ${
+                      className={`pr-8 ${
                         !pwMatch ? 'border-red-500' : (passwordConfirm && pwMatch ? 'border-green-500' : '')
                       }`}
                       required
                     />
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                      {passwordConfirm && pwMatch  && <CheckCircle2 className="w-4 h-4 text-green-400" />}
-                      {passwordConfirm && !pwMatch && <XCircle className="w-4 h-4 text-red-400" />}
+                      {passwordConfirm && pwMatch  && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                      {passwordConfirm && !pwMatch && <XCircle className="w-4 h-4 text-red-500" />}
                     </div>
                   </div>
-                  {!pwMatch && <p className="text-xs text-red-400">비밀번호가 일치하지 않습니다.</p>}
+                  {!pwMatch && <p className="text-xs text-red-500">비밀번호가 일치하지 않습니다.</p>}
                 </div>
 
                 <Button type="submit" className="w-full" disabled={loading || !canSubmit}>
                   {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />처리 중...</> : '다음 단계 →'}
                 </Button>
-                <p className="text-center text-sm text-white/40">
+                <p className="text-center text-sm text-muted-foreground">
                   이미 계정이 있으신가요?{' '}
                   <Link href="/login" className="text-primary hover:underline">로그인</Link>
                 </p>
@@ -268,7 +271,7 @@ export default function RegisterPage() {
           <div className="space-y-8">
             {/* 월 구독형 */}
             <div>
-              <p className="text-xs text-white/40 mb-1">월 구독형 — 공구를 규칙적으로 운영하는 셀러</p>
+              <p className="text-xs text-muted-foreground mb-1">월 구독형 — 공구를 규칙적으로 운영하는 셀러</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {SUBSCRIPTION_PLANS.map((pt) => {
                   const cfg = PLAN_CONFIG[pt];
@@ -278,10 +281,10 @@ export default function RegisterPage() {
                     <button key={pt} onClick={() => setSelectedPlan(pt)}
                       className={`relative flex flex-col rounded-2xl border-2 p-5 text-left transition-all ${
                         active
-                          ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
+                          ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
                           : isPro
-                          ? 'border-primary/40 bg-[#1a1d27] hover:border-primary/70'
-                          : 'border-white/10 bg-[#1a1d27] hover:border-white/30'
+                          ? 'border-primary/40 bg-white hover:border-primary/70'
+                          : 'border-border bg-white hover:border-gray-300'
                       }`}
                     >
                       {cfg.badge && (
@@ -289,10 +292,10 @@ export default function RegisterPage() {
                           {cfg.badge}
                         </span>
                       )}
-                      <p className="text-sm font-semibold text-white/70">{cfg.name}</p>
-                      <p className={`text-2xl font-extrabold mt-0.5 ${active || isPro ? 'text-primary' : 'text-white'}`}>
+                      <p className="text-sm font-semibold text-muted-foreground">{cfg.name}</p>
+                      <p className={`text-2xl font-extrabold mt-0.5 ${active || isPro ? 'text-primary' : 'text-foreground'}`}>
                         {cfg.price === 0 ? '0' : cfg.price.toLocaleString()}
-                        <span className="text-sm font-normal text-white/40">원/월</span>
+                        <span className="text-sm font-normal text-muted-foreground">원/월</span>
                       </p>
 
                       <div className="mt-4 space-y-0 flex-1">
@@ -325,14 +328,14 @@ export default function RegisterPage() {
                   );
                 })}
               </div>
-              <p className="text-xs text-white/30 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 💡 구독형은 한도 초과 시 공통 종량 과금이 자동 적용됩니다. 한도 내에서 쓰면 정액 요금만 청구됩니다.
               </p>
             </div>
 
             {/* 건당 구매형 */}
             <div>
-              <p className="text-xs text-white/40 mb-1">건당 구매형 — 공구가 비정기적이거나 소량인 셀러</p>
+              <p className="text-xs text-muted-foreground mb-1">건당 구매형 — 공구가 비정기적이거나 소량인 셀러</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {PASS_PLANS.map((pt) => {
                   const cfg = PLAN_CONFIG[pt];
@@ -343,8 +346,8 @@ export default function RegisterPage() {
                     <button key={pt} onClick={() => setSelectedPlan(pt)}
                       className={`relative flex flex-col rounded-2xl border-2 p-5 text-left transition-all ${
                         active
-                          ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
-                          : 'border-white/10 bg-[#1a1d27] hover:border-white/30'
+                          ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
+                          : 'border-border bg-white hover:border-gray-300'
                       }`}
                     >
                       {cfg.badge && (
@@ -354,16 +357,16 @@ export default function RegisterPage() {
                           {cfg.badge}
                         </span>
                       )}
-                      <p className="text-sm font-semibold text-white/70">{cfg.name}</p>
+                      <p className="text-sm font-semibold text-muted-foreground">{cfg.name}</p>
                       <div className="flex items-baseline gap-2 mt-0.5">
-                        <p className={`text-2xl font-extrabold ${active ? 'text-primary' : 'text-white'}`}>
+                        <p className={`text-2xl font-extrabold ${active ? 'text-primary' : 'text-foreground'}`}>
                           {cfg.price.toLocaleString()}
-                          <span className="text-sm font-normal text-white/40">원</span>
+                          <span className="text-sm font-normal text-muted-foreground">원</span>
                         </p>
-                        {orig && <span className="text-sm text-white/30 line-through">{orig.toLocaleString()}원</span>}
+                        {orig && <span className="text-sm text-muted-foreground line-through">{orig.toLocaleString()}원</span>}
                       </div>
-                      {pt === 'pass_3' && <p className="text-xs text-blue-400 mt-0.5">회당 8,300원 · 16% 절약</p>}
-                      {pt === 'pass_10' && <p className="text-xs text-purple-400 mt-0.5">회당 6,990원 · 29% 절약</p>}
+                      {pt === 'pass_3' && <p className="text-xs text-blue-500 mt-0.5">회당 8,300원 · 16% 절약</p>}
+                      {pt === 'pass_10' && <p className="text-xs text-purple-500 mt-0.5">회당 6,990원 · 29% 절약</p>}
 
                       <div className="mt-4 flex-1">
                         <PlanRow label="유효 기간" highlight={active}
@@ -389,13 +392,13 @@ export default function RegisterPage() {
                   );
                 })}
               </div>
-              <p className="text-xs text-white/30 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 💡 건당 구매형도 주문 한도 초과 시 공통 종량 과금이 적용됩니다. 회차는 공구 생성 시 1회 차감됩니다.
               </p>
             </div>
 
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep('info')} className="w-28 border-white/20 text-white hover:bg-white/10">
+              <Button variant="outline" onClick={() => setStep('info')} className="w-28">
                 <ChevronLeft className="w-4 h-4 mr-1" />이전
               </Button>
               <Button onClick={handlePlanConfirm} className="flex-1 text-base py-5">
@@ -408,27 +411,27 @@ export default function RegisterPage() {
         {/* ── STEP 3: 결제 ── */}
         {step === 'payment' && (
           <div className="max-w-md mx-auto">
-            <div className="bg-[#1a1d27] rounded-2xl p-8 space-y-6">
+            <div className="bg-white rounded-2xl p-8 space-y-6 border border-border shadow-sm">
               <div>
                 <h2 className="text-xl font-bold">결제 확인</h2>
-                <p className="text-sm text-white/50 mt-1">선택한 플랜으로 결제를 진행합니다</p>
+                <p className="text-sm text-muted-foreground mt-1">선택한 플랜으로 결제를 진행합니다</p>
               </div>
-              <div className="p-4 bg-white/5 rounded-xl space-y-3">
+              <div className="p-4 bg-gray-50 rounded-xl space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-white/50">플랜</span>
+                  <span className="text-muted-foreground">플랜</span>
                   <span className="font-semibold">{planConfig.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-white/50">금액</span>
+                  <span className="text-muted-foreground">금액</span>
                   <span className="font-bold text-xl text-primary">{planConfig.price.toLocaleString()}원</span>
                 </div>
-                <div className="flex justify-between text-xs text-white/40">
+                <div className="flex justify-between text-xs text-muted-foreground">
                   <span>결제 방식</span>
                   <span>{planConfig.billingType === 'monthly' ? '월 구독 (매달 갱신)' : `1회 결제 (${planConfig.passTotal}회권)`}</span>
                 </div>
               </div>
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep('plan')} className="w-28 border-white/20 text-white hover:bg-white/10">
+                <Button variant="outline" onClick={() => setStep('plan')} className="w-28">
                   <ChevronLeft className="w-4 h-4 mr-1" />이전
                 </Button>
                 <Button onClick={handlePayment} className="flex-1">

@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
@@ -23,6 +24,18 @@ export class ProjectsController {
   @ApiOperation({ summary: '공개 주문폼 프로젝트 정보 조회' })
   async findBySlug(@Param('slug') slug: string) {
     return this.projectsService.findBySlug(slug);
+  }
+
+  @Get('check-slug')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '슬러그 중복 확인' })
+  async checkSlug(
+    @CurrentUser() user: any,
+    @Query('slug') slug: string,
+    @Query('excludeId') excludeId?: string,
+  ) {
+    return this.projectsService.checkSlugAvailable(slug, excludeId ? BigInt(excludeId) : undefined, user.email);
   }
 
   @Get()

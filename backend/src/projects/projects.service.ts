@@ -54,6 +54,19 @@ export class ProjectsService {
     return this.serialize(project);
   }
 
+  async checkSlugAvailable(slug: string, excludeId: bigint | undefined, userEmail: string) {
+    if (!slug) return { available: false };
+    const emailPrefix = userEmail
+      ? userEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '')
+      : '';
+    const finalSlug = emailPrefix ? `${emailPrefix}_${slug}` : slug;
+    const existing = await this.prisma.project.findUnique({
+      where: { slug: finalSlug },
+    });
+    const available = !existing || (excludeId !== undefined && existing.id === excludeId);
+    return { available, fullSlug: finalSlug };
+  }
+
   async findBySlug(slug: string) {
     // 직접 매칭 시도
     let project = await this.prisma.project.findUnique({

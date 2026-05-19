@@ -78,22 +78,22 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {KPI.map(({ label, key, icon: Icon, color, href }) => (
           <Link key={key} href={href}>
-            <Card className="hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group">
-              <CardContent className="p-4">
+            <Card className="hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group h-[110px]">
+              <CardContent className="p-4 h-full flex flex-col justify-between">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      {label}
-                      <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </p>
-                    <p className="text-2xl font-bold mt-0.5">
-                      {formatValue(key, stats[key] as number)}
-                    </p>
-                    {subLabel(key) && (
-                      <p className="text-xs text-gray-400 mt-1">{subLabel(key)}</p>
-                    )}
-                  </div>
-                  <Icon className={`w-8 h-8 ${color} opacity-80`} />
+                  <p className="text-xs text-gray-500 flex items-center gap-1 leading-tight whitespace-nowrap">
+                    {label}
+                    <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                  </p>
+                  <Icon className={`w-6 h-6 ${color} opacity-80 flex-shrink-0`} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold truncate">
+                    {formatValue(key, stats[key] as number)}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5 h-4 truncate">
+                    {subLabel(key)}
+                  </p>
                 </div>
               </CardContent>
             </Card>

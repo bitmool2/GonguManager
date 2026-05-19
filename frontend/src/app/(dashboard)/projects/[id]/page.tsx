@@ -462,19 +462,17 @@ function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* 탭 */}
-      <Tabs defaultValue={initialTab}>
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="info">기본 정보</TabsTrigger>
-          <TabsTrigger value="products">상품 관리</TabsTrigger>
-          <TabsTrigger value="bank">계좌 설정</TabsTrigger>
-          <TabsTrigger value="shipping">배송 정책</TabsTrigger>
-          <TabsTrigger value="faq">FAQ</TabsTrigger>
-          <TabsTrigger value="ai">AI 상담</TabsTrigger>
-        </TabsList>
+        {/* 탭 */}
+        <Tabs defaultValue={initialTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="info">기본 정보</TabsTrigger>
+            <TabsTrigger value="products">상품 관리</TabsTrigger>
+            <TabsTrigger value="faq">FAQ</TabsTrigger>
+            <TabsTrigger value="ai">AI 상담</TabsTrigger>
+          </TabsList>
 
         {/* ── 기본 정보 ── */}
-        <TabsContent value="info" className="mt-4">
+        <TabsContent value="info" className="mt-4 space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-lg">프로젝트 기본 정보</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -524,8 +522,96 @@ function ProjectDetailPage() {
               </div>
               <Button onClick={handleSaveProject} disabled={savingProject || !form.name}>
                 <Save className="w-4 h-4 mr-2" />
-                {savingProject ? '저장 중...' : '저장'}
+                {savingProject ? '저장 중...' : '기본 정보 저장'}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* 계좌 설정 */}
+          <Card>
+            <CardHeader><CardTitle className="text-lg">입금 방식 설정 <span className="text-red-500 text-sm">*</span></CardTitle></CardHeader>
+            <CardContent className="space-y-6">
+              <p className="text-sm text-muted-foreground">주문서에서 고객에게 안내할 입금 방식을 선택하세요.</p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: 'personal', label: '개인계좌', desc: '직접 계좌번호 안내' },
+                  { value: 'vbank',    label: '가상계좌', desc: '포트원 자동 발급' },
+                  { value: 'both',     label: '모두 사용', desc: '두 방식 동시 제공' },
+                ].map((opt) => (
+                  <button key={opt.value} type="button" onClick={() => setForm({ ...form, paymentMethod: opt.value })}
+                    className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                      form.paymentMethod === opt.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                    }`}>
+                    <p className={`text-sm font-semibold ${form.paymentMethod === opt.value ? 'text-primary' : ''}`}>{opt.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+              {(form.paymentMethod === 'personal' || form.paymentMethod === 'both') && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">개인계좌 정보</p>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>은행명 <span className="text-red-500">*</span></Label>
+                      <Input value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="국민은행" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>계좌번호 <span className="text-red-500">*</span></Label>
+                      <Input value={form.bankAccount} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} placeholder="123-456-789012" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>예금주 <span className="text-red-500">*</span></Label>
+                      <Input value={form.bankHolder} onChange={(e) => setForm({ ...form, bankHolder: e.target.value })} placeholder="홍길동" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {(form.paymentMethod === 'vbank' || form.paymentMethod === 'both') && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                  <p className="text-sm font-semibold text-blue-800 flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4" />가상계좌 (포트원)
+                  </p>
+                  <div className="space-y-2">
+                    <Label className="text-blue-800">가맹점 식별코드 (IMP Key) <span className="text-red-500">*</span></Label>
+                    <Input value={form.impKey} onChange={(e) => setForm({ ...form, impKey: e.target.value })}
+                      placeholder="imp_xxxxxxxxxx" className="bg-white font-mono text-sm" />
+                    <p className="text-xs text-blue-600">포트원 관리자 콘솔 → 상점·계정 관리 → 내 식별코드·API Keys 에서 확인하세요.</p>
+                    <a href="https://admin.portone.io" target="_blank" rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-blue-700 font-medium hover:underline">
+                      포트원 관리자 콘솔 바로가기
+                    </a>
+                  </div>
+                </div>
+              )}
+              {/* 배송 정책 */}
+              <div className="border-t pt-4 space-y-3">
+                <p className="text-sm font-semibold">배송 정책</p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>배송 예정일 (영업일)</Label>
+                    <Input type="number" value={form.shippingDays}
+                      onChange={(e) => setForm({ ...form, shippingDays: e.target.value === '' ? '' : Number(e.target.value) })}
+                      placeholder="예: 3" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>교환 가능일</Label>
+                    <Input type="number" value={form.exchangeDays}
+                      onChange={(e) => setForm({ ...form, exchangeDays: e.target.value === '' ? '' : Number(e.target.value) })}
+                      placeholder="예: 7" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button onClick={handleSaveSettings} disabled={savingSettings}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {savingSettings ? '저장 중...' : '계좌·배송 저장'}
+                </Button>
+                {settingsMsg && (
+                  <span className={`text-sm ${settingsMsg.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
+                    {settingsMsg.text}
+                  </span>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -562,13 +648,18 @@ function ProjectDetailPage() {
               {/* 옵션 그룹 설정 */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">옵션 그룹 <span className="text-muted-foreground font-normal">({optionGroups.length}/3) — 그룹이 2개 이상이면 조합을 자동 생성합니다</span></p>
-                  {optionGroups.length < 3 && (
-                    <Button size="sm" variant="outline"
-                      onClick={() => setOptionGroups([...optionGroups, { name: '', values: [''] }])}>
-                      <Plus className="w-3 h-3 mr-1" />옵션 추가
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold">옵션 그룹 <span className="text-muted-foreground font-normal">({optionGroups.length}/3) — 그룹이 2개 이상이면 조합을 자동 생성합니다</span></p>
+                    {optionGroups.length < 3 && (
+                      <Button size="sm" variant="outline"
+                        onClick={() => setOptionGroups([...optionGroups, { name: '', values: [''] }])}>
+                        <Plus className="w-3 h-3 mr-1" />옵션 추가
+                      </Button>
+                    )}
+                  </div>
+                  <Button onClick={handleAddProduct} disabled={!newProduct.name} className="ml-auto">
+                    <Plus className="w-4 h-4 mr-1" />상품 등록
+                  </Button>
                 </div>
                 {optionGroups.map((grp, gi) => (
                   <div key={gi} className="p-3 border rounded-lg space-y-2 bg-muted/20">
@@ -637,9 +728,6 @@ function ProjectDetailPage() {
                 </div>
               )}
 
-              <Button onClick={handleAddProduct} disabled={!newProduct.name}>
-                <Plus className="w-4 h-4 mr-1" />상품 등록
-              </Button>
             </CardContent>
           </Card>
 
@@ -797,146 +885,6 @@ function ProjectDetailPage() {
                   )}
                 </div>
               ))}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ── 계좌 설정 ── */}
-        <TabsContent value="bank" className="mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">입금 방식 설정 <span className="text-red-500 text-sm">*</span></CardTitle></CardHeader>
-            <CardContent className="space-y-6">
-              <p className="text-sm text-muted-foreground">주문서에서 고객에게 안내할 입금 방식을 선택하세요.</p>
-
-              {/* 결제 방식 선택 */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { value: 'personal', label: '개인계좌', desc: '직접 계좌번호 안내' },
-                  { value: 'vbank',    label: '가상계좌', desc: '포트원 자동 발급' },
-                  { value: 'both',     label: '모두 사용', desc: '두 방식 동시 제공' },
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setForm({ ...form, paymentMethod: opt.value })}
-                    className={`p-3 rounded-lg border-2 text-left transition-colors ${
-                      form.paymentMethod === opt.value
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <p className={`text-sm font-semibold ${form.paymentMethod === opt.value ? 'text-primary' : ''}`}>{opt.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
-                  </button>
-                ))}
-              </div>
-
-              {/* 개인계좌 입력 */}
-              {(form.paymentMethod === 'personal' || form.paymentMethod === 'both') && (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">개인계좌 정보</p>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label>은행명 <span className="text-red-500">*</span></Label>
-                      <Input value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="국민은행" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>계좌번호 <span className="text-red-500">*</span></Label>
-                      <Input value={form.bankAccount} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} placeholder="123-456-789012" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>예금주 <span className="text-red-500">*</span></Label>
-                      <Input value={form.bankHolder} onChange={(e) => setForm({ ...form, bankHolder: e.target.value })} placeholder="홍길동" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 가상계좌 안내 */}
-              {(form.paymentMethod === 'vbank' || form.paymentMethod === 'both') && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
-                  <p className="text-sm font-semibold text-blue-800 flex items-center gap-1.5">
-                    <CreditCard className="w-4 h-4" />가상계좌 (포트원)
-                  </p>
-                  <div className="space-y-2">
-                    <Label className="text-blue-800">가맹점 식별코드 (IMP Key) <span className="text-red-500">*</span></Label>
-                    <Input
-                      value={form.impKey}
-                      onChange={(e) => setForm({ ...form, impKey: e.target.value })}
-                      placeholder="imp_xxxxxxxxxx"
-                      className="bg-white font-mono text-sm"
-                    />
-                    <p className="text-xs text-blue-600">
-                      포트원 관리자 콘솔 → 상점·계정 관리 → 내 식별코드·API Keys 에서 확인하세요.
-                    </p>
-                    <a
-                      href="https://admin.portone.io"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-blue-700 font-medium hover:underline"
-                    >
-                      포트원 관리자 콘솔 바로가기
-                    </a>
-                  </div>
-                  <p className="text-xs text-blue-700">
-                    주문 시 고객마다 고유한 가상계좌 번호가 자동 발급됩니다.
-                    입금 즉시 webhook으로 주문 상태가 자동 업데이트됩니다.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center gap-3">
-                <Button onClick={handleSaveSettings} disabled={savingSettings}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {savingSettings ? '저장 중...' : '저장'}
-                </Button>
-                {settingsMsg && (
-                  <span className={`text-sm ${settingsMsg.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
-                    {settingsMsg.text}
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ── 배송 정책 ── */}
-        <TabsContent value="shipping" className="mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">배송 정책</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">이 프로젝트의 배송 정책입니다. 주문폼 하단에 표시됩니다.</p>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>배송 예정일 (영업일)</Label>
-                  <Input
-                    type="number"
-                    value={form.shippingDays}
-                    onChange={(e) => setForm({ ...form, shippingDays: e.target.value === '' ? '' : Number(e.target.value) })}
-                    placeholder="예: 3"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>교환 가능일</Label>
-                  <Input
-                    type="number"
-                    value={form.exchangeDays}
-                    onChange={(e) => setForm({ ...form, exchangeDays: e.target.value === '' ? '' : Number(e.target.value) })}
-                    placeholder="예: 7"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button onClick={handleSaveSettings} disabled={savingSettings}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {savingSettings ? '저장 중...' : '저장'}
-                </Button>
-                {settingsMsg && (
-                  <span className={`text-sm ${settingsMsg.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
-                    {settingsMsg.text}
-                  </span>
-                )}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
